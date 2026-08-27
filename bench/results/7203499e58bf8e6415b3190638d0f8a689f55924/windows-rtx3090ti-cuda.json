@@ -1,0 +1,969 @@
+{
+  "configuration_fingerprint": "f0520bab8ffb366a0a8d2f0896302b54e1b7ad3140fa8ce480a44ed3a3db4dd4",
+  "metadata": {
+    "benchmark_schema_version": 1,
+    "commit": "7203499e58bf8e6415b3190638d0f8a689f55924",
+    "cpu_count": 20,
+    "dependencies": {
+      "doc2md": "0.1.0",
+      "docling": "2.120.1",
+      "psutil": "7.2.2",
+      "rapidocr": "3.9.2",
+      "torch": "2.13.0+cu130"
+    },
+    "device": "cuda",
+    "dirty_worktree": false,
+    "fixture_hashes": {
+      "input:data-json.json": "e5ac211c544d100d82ee7006a0e276cbf7797a73f355480d1c66748a8626a72b",
+      "input:data-xml.xml": "88cdea5b929e14f5ca32652ed3128af516e3f587224d4cde87becbccdb69eb8a",
+      "input:data-yaml.yaml": "42c27fe4248150874ba9c67b3e56f42186705e62b756796b945f6e6472a970ec",
+      "input:data-yml.yml": "2842b26b3bf003975a14afe86812b83dfe87a0516dc498ce0b770d31491f8f17",
+      "input:ebook.epub": "23b7f6ad9564addc253ae470200a3d6c498c21364e2a34a25c373345c2a0a03c",
+      "input:email.msg": "b36b9a5c1aeb7fe278c0feeb356384553447e7f2d5070d8fb0b5815d3f621635",
+      "input:image-bmp.bmp": "b56bc835884187d6dd5c9fc32affda2096e552bc8218ada7eae4425673e77308",
+      "input:image-jpeg.jpeg": "c7230de692286738035ebef7f205d1e1fcb026d16eeb23e093d6e834801e324f",
+      "input:image-jpg.jpg": "ad70c39d03eb050c60abc661e4ac6e2323497cfea99cff2290ccdc327784f2e9",
+      "input:image-png.png": "f95ea3366d4e7b30f60c7ef9eff699dfe66e82a889cf2b6a53f7bdc56c25d14e",
+      "input:image-tif.tif": "dc4b20ec4c8d9980eb8a4fa19249af907a50752e5600934c33e6ce87b98453ba",
+      "input:image-tiff.tiff": "8327f029cf92ffde8b9964866a55c698331c84311760e5af5e535517130e5f49",
+      "input:image-webp.webp": "aadbd1fa83dc389da608faa93894e77b801dfb125ad3053358124c07a802a14e",
+      "input:markdown.md": "abe3953b22cfd30daac78acb5272e678681f16c0fd1d9ec8a6486570dcb65d56",
+      "input:pdf-born-digital.pdf": "50bf29453f9bbc400a7a0e57e18f5cb8240fa3e6fcec4ab5cdad97a4bfcb0b9c",
+      "input:pdf-scanned.pdf": "5a425b5b5f7f2485f4902c26dbf0bd6b7fe1bc1fd8d19ec167459ef31e07ff5a",
+      "input:pdf/ar-clean.pdf": "8f7e42ed0e7a998a6365cf1d1e0cf235825471aff7ea58c9eb003444d3a7aefd",
+      "input:pdf/de-clean.pdf": "2e946b0f5f898705b429b3a8f135da0b96a8a9e8da52b826e07e677849fe7ad8",
+      "input:pdf/en-clean.pdf": "a38cf53f35a59bf73cfb949c351337e36256de957cca11d8da2c8d6512c975ab",
+      "input:pdf/ja-clean.pdf": "1bd88a0d65421565511cf5ddd3fb59bdb3ff30b54a5310eb3113d56a9334f24a",
+      "input:pdf/ko-clean.pdf": "34d867922ac4cd59ce8b091932ab88a746ec700232598f60557145194fedf87d",
+      "input:pdf/ru-clean.pdf": "a7c7866918db800d0379d54e7d9966406d68cc835600a1a2e42ec42e45c238d5",
+      "input:pdf/th-clean.pdf": "4e38f0dcca8f70492ec2bdb041c5b7ba2d63ae3fe9440a85d037316f5d473f1a",
+      "input:pdf/vi-clean.pdf": "d5bd480ff2a859bad3b52efb69ef8357ffc6ed39d0001d9c258ba13871658f49",
+      "input:pdf/zh-clean.pdf": "a3d858abcfca8cb509dd9792aa8391f7cb257275e7b408620f6112b923ee5155",
+      "input:pdf/zt-clean.pdf": "1ea4ea65de3f5e0268107acf9027a01225560fa1b544e0af85fca358de862891",
+      "input:plain-cp874.txt": "5a45885dd771252509a0737bcb542caf1e545f5e9aba01ffae9f9d17faa1a754",
+      "input:plain-utf8.txt": "3c5e1504b6da87f8c2db7ca0776de0c9d5a6100c2810665c3e2992e54d95e0d5",
+      "input:presentation.pptx": "e5436987edea7125bf08952bd5796d857641225917885f1b9894ea89242b3e26",
+      "input:spreadsheet-legacy.xls": "0f9f6e8992e11c2bb2823137088f83cd575744567010d3f995426f002e21ed20",
+      "input:spreadsheet.xlsx": "1fb51d4a793ffff954b08e5857db53c93c73056343a7687e216bc16ba99deb46",
+      "input:table.csv": "d5f2aa6ee45b1aea8906e26ead936652c6653bbdc7b21e9af792bfeb7e585eff",
+      "input:web-page-legacy.htm": "97512f012c973f5c3e56b04b17912a874a40220344a2192f7c6974f3e4ee4084",
+      "input:web-page.html": "12de34813700d787137766cca24efea2fc06a579e2b533b590a027daffc96284",
+      "input:word-document.docx": "5ad6854f4a98b3d6648739051a1824972956e45182795f8da03582754bdd9fc1",
+      "manifest": "2a67ec5a650114403d9dfc9b6fd4ccf313a656b5c873fcb5fad4241c55fc27e9",
+      "truth:pdf/ar-clean.pdf": "3c297f771b0d68b053c03acbdc5d74212933c32a5f49452787908c1fac21d3b6",
+      "truth:pdf/de-clean.pdf": "cba50aa75ad8a376fd11614d5fa79c0db18799b81fe039381f4bd4b62ad4bbe8",
+      "truth:pdf/en-clean.pdf": "e85126210fc40aa173ed8ee0ff95e4bd83a3eefa4670a1b2e628630d125027f8",
+      "truth:pdf/ja-clean.pdf": "0ac614f803496c8ed21fe1c4b70745af6e632668771fe95fdbbd1452023f3cbf",
+      "truth:pdf/ko-clean.pdf": "95749d18773f179590e8558fbe614eeca0aab460573883b3428035cc98586737",
+      "truth:pdf/ru-clean.pdf": "982aba2212cab8b2dd865d4e10bd05e3b729ab2edb5c41dc858e954b30946402",
+      "truth:pdf/th-clean.pdf": "3dfb6dc723abf03a276881c6e72cdb0afe194ad3522cc6480a7e9c9367e21f4b",
+      "truth:pdf/vi-clean.pdf": "85cd5f52beafe255be3bdf4006009f5b275dd05c90c89f02ac839ecdb4ea07c5",
+      "truth:pdf/zh-clean.pdf": "82ac300896a0a5156afe3e2ba5c456f9497dd3ccb0456f92a890c8edb6f2c14f",
+      "truth:pdf/zt-clean.pdf": "65fd9e17dabffc0006629798941b07dfc6759a610b09a72848d8fb429e1b21e4"
+    },
+    "os": {
+      "architecture": "AMD64",
+      "release": "11",
+      "system": "Windows",
+      "version": "10.0.26200"
+    },
+    "platform": "windows-rtx3090ti",
+    "purpose": "production",
+    "python": "3.13.13",
+    "scenario_plan": [
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-bmp.bmp:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpeg.jpeg:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpg.jpg:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-png.png:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tif.tif:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tiff.tiff:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-webp.webp:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "docling"
+        ],
+        "id": "format:pdf-born-digital.pdf:docling:cuda",
+        "language": null,
+        "method": "docling",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:pdf-scanned.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:docling+ocr:cuda:thai",
+        "language": "thai",
+        "method": "docling+ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:docling+ocr:cuda:japanese",
+        "language": "japanese",
+        "method": "docling+ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:docling+ocr:cuda:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:docling+ocr:cuda:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:docling+ocr:cuda:korean",
+        "language": "korean",
+        "method": "docling+ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:docling+ocr:cuda:cyrillic",
+        "language": "cyrillic",
+        "method": "docling+ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:docling+ocr:cuda:arabic",
+        "language": "arabic",
+        "method": "docling+ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      }
+    ],
+    "started_at_utc": "2026-08-14T18:07:26.893380+00:00",
+    "suite": "all",
+    "timing_policy": {
+      "max_warm_repeats": 7,
+      "min_sample_seconds": 0.25,
+      "variance_ratio": 0.1,
+      "warm_repeats": 3
+    },
+    "total_memory_mib": 65285.94921875
+  },
+  "samples": [
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 19.7719074,
+      "marker_verified": true,
+      "output_sha256": "5204b7260d5132797559ef509db0e6e32185bfdb3d082226b3e455ae111d03ca",
+      "resources": {
+        "peak_process_rss_mib": 1925.50390625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 575.16845703125,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-bmp.bmp:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.8153054,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.09985849999999985,
+      "warm_samples_seconds": [
+        4.8770973,
+        4.7772388,
+        4.8153054
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "92025730ae87c06f9fc2894974c4cf4b649dd5b4b95e6e033282a7f47b549d22",
+      "resources": {
+        "peak_process_rss_mib": 1975.71875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpeg.jpeg:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.870672,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.21637839999999997,
+      "warm_samples_seconds": [
+        4.7994431,
+        5.0158215,
+        4.870672
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "17a056dc19256a38cd6960eb432d464d1d32c9693c8176e1c3b691c1c0c36ccc",
+      "resources": {
+        "peak_process_rss_mib": 2042.01171875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpg.jpg:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.9130813,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.0630917000000002,
+      "warm_samples_seconds": [
+        4.9130813,
+        4.9040456,
+        4.9671373
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "fc1b44bcd25ce762a5987c2fa4816873ed2ad6dee66237ee0d39e32d15a853c3",
+      "resources": {
+        "peak_process_rss_mib": 2030.47265625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-png.png:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.8607817,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.3123534000000001,
+      "warm_samples_seconds": [
+        4.8607817,
+        4.7475156,
+        5.059869
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "3bf29d7dec3b4c675f1e28f82b5e00009d613992b4934e846c8fbf286d0f1dd6",
+      "resources": {
+        "peak_process_rss_mib": 2013.703125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tif.tif:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.9516097,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.23377919999999985,
+      "warm_samples_seconds": [
+        4.9516097,
+        5.1609514,
+        4.9271722
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "d160c2f7c7f5d072f4579242f00b752d487c799034899de39a532f791ddefb0a",
+      "resources": {
+        "peak_process_rss_mib": 2124.5546875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tiff.tiff:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.8281402,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.16202449999999935,
+      "warm_samples_seconds": [
+        4.9641008,
+        4.8020763,
+        4.8281402
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "b735c1407ba0f33e285895d3c03a3e5629f296b20a507e8210bac82126d14fd8",
+      "resources": {
+        "peak_process_rss_mib": 2105.19921875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 503.19091796875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-webp.webp:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.9052344,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.24278759999999977,
+      "warm_samples_seconds": [
+        4.9052344,
+        4.7812208,
+        5.0240084
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling",
+      "initialization_seconds": 2.6720092,
+      "marker_verified": true,
+      "output_sha256": "ceca67099082be63eace5c5e29b88b7d29bb0b21c20289a63f20e2ce0916fa36",
+      "resources": {
+        "peak_process_rss_mib": 1958.46484375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 954.60693359375,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "docling"
+        ],
+        "id": "format:pdf-born-digital.pdf:docling:cuda",
+        "language": null,
+        "method": "docling",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.2086026,
+      "warm_operation_counts": [
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.005281050000000009,
+      "warm_samples_seconds": [
+        0.20930365,
+        0.2086026,
+        0.2040226
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "28e5392f8ac5f80582cd87527b213266a3677da07f69b772c13a615a91c7cd21",
+      "resources": {
+        "peak_process_rss_mib": 2057.03125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 873.47705078125,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:pdf-scanned.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.027659,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.1267125,
+      "warm_samples_seconds": [
+        5.078571,
+        5.027659,
+        4.9518585
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "b46e95af6b6ccf804b14cdca395570dcf393442df367fbbf836bbcdc028bc92f",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2144.15234375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 873.47705078125,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.2903145,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.35870779999999947,
+      "warm_samples_seconds": [
+        5.2903145,
+        5.6215977,
+        5.2628899
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "06936e65cfc92e8f5e6a3d107143722be37ba5bbb019df7e8ad901285b936d10",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2100.78125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 873.47705078125,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.5410251,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.17689490000000063,
+      "warm_samples_seconds": [
+        4.6812918,
+        4.5410251,
+        4.5043969
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "8cfa7417f57e2d0765ce4a92923e94eb889500331af1dd035ad6b5d7bdd4d54c",
+      "quality": {
+        "cer": 0.22647058823529412,
+        "cer_bag": 0.26119402985074625,
+        "cer_ns": 0.26865671641791045
+      },
+      "resources": {
+        "peak_process_rss_mib": 2216.60546875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 873.47705078125,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:docling+ocr:cuda:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.4077184,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.20804490000000087,
+      "warm_samples_seconds": [
+        5.5511024,
+        5.4077184,
+        5.3430575
+      ]
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:docling+ocr:cuda:thai",
+        "language": "thai",
+        "method": "docling+ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 8.1854153,
+      "marker_verified": true,
+      "output_sha256": "f40fcb020c52b2a73ccdfb0241b37d870262878a2808d367ca7f08b1e59a11fc",
+      "quality": {
+        "cer": 0.09090909090909091,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2251.15234375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 1329.76806640625,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:docling+ocr:cuda:japanese",
+        "language": "japanese",
+        "method": "docling+ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.0550096,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.1791727999999999,
+      "warm_samples_seconds": [
+        5.1638392,
+        4.9846664,
+        5.0550096
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 7.7352759,
+      "marker_verified": true,
+      "output_sha256": "c3bc37756833c708c0e45cb5bdb91e66c444ee40c1c82fb4fa4b4836bf0d489c",
+      "quality": {
+        "cer": 0.05755395683453238,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2356.125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 1700.67919921875,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:docling+ocr:cuda:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.0387751,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.3249518,
+      "warm_samples_seconds": [
+        5.1849484,
+        4.8599966,
+        5.0387751
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "d4e3fbb21062cd8714e43e6dc68e158fd64d9f3b9749d83bf5d0c82a7debea12",
+      "quality": {
+        "cer": 0.07194244604316546,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2374.16015625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": 1617.42431640625,
+        "pytorch_allocator_peak_status": "available"
+      },
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:docling+ocr:cuda:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.1406321,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.3482599999999998,
+      "warm_samples_seconds": [
+        5.1406321,
+        4.8303811,
+        5.1786411
+      ]
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:docling+ocr:cuda:korean",
+        "language": "korean",
+        "method": "docling+ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:docling+ocr:cuda:cyrillic",
+        "language": "cyrillic",
+        "method": "docling+ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cuda",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:docling+ocr:cuda:arabic",
+        "language": "arabic",
+        "method": "docling+ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    }
+  ],
+  "schema_version": 1
+}

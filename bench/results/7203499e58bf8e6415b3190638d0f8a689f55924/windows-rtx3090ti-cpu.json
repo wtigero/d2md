@@ -1,0 +1,2810 @@
+{
+  "configuration_fingerprint": "b7e8febfb61758861b8dc022c985de9088c8830de4d332bbc4309d276c120bb1",
+  "metadata": {
+    "benchmark_schema_version": 1,
+    "commit": "7203499e58bf8e6415b3190638d0f8a689f55924",
+    "cpu_count": 20,
+    "dependencies": {
+      "doc2md": "0.1.0",
+      "docling": "2.120.1",
+      "psutil": "7.2.2",
+      "rapidocr": "3.9.2",
+      "torch": "2.13.0+cu130"
+    },
+    "device": "cpu",
+    "dirty_worktree": false,
+    "fixture_hashes": {
+      "input:data-json.json": "e5ac211c544d100d82ee7006a0e276cbf7797a73f355480d1c66748a8626a72b",
+      "input:data-xml.xml": "88cdea5b929e14f5ca32652ed3128af516e3f587224d4cde87becbccdb69eb8a",
+      "input:data-yaml.yaml": "42c27fe4248150874ba9c67b3e56f42186705e62b756796b945f6e6472a970ec",
+      "input:data-yml.yml": "2842b26b3bf003975a14afe86812b83dfe87a0516dc498ce0b770d31491f8f17",
+      "input:ebook.epub": "23b7f6ad9564addc253ae470200a3d6c498c21364e2a34a25c373345c2a0a03c",
+      "input:email.msg": "b36b9a5c1aeb7fe278c0feeb356384553447e7f2d5070d8fb0b5815d3f621635",
+      "input:image-bmp.bmp": "b56bc835884187d6dd5c9fc32affda2096e552bc8218ada7eae4425673e77308",
+      "input:image-jpeg.jpeg": "c7230de692286738035ebef7f205d1e1fcb026d16eeb23e093d6e834801e324f",
+      "input:image-jpg.jpg": "ad70c39d03eb050c60abc661e4ac6e2323497cfea99cff2290ccdc327784f2e9",
+      "input:image-png.png": "f95ea3366d4e7b30f60c7ef9eff699dfe66e82a889cf2b6a53f7bdc56c25d14e",
+      "input:image-tif.tif": "dc4b20ec4c8d9980eb8a4fa19249af907a50752e5600934c33e6ce87b98453ba",
+      "input:image-tiff.tiff": "8327f029cf92ffde8b9964866a55c698331c84311760e5af5e535517130e5f49",
+      "input:image-webp.webp": "aadbd1fa83dc389da608faa93894e77b801dfb125ad3053358124c07a802a14e",
+      "input:markdown.md": "abe3953b22cfd30daac78acb5272e678681f16c0fd1d9ec8a6486570dcb65d56",
+      "input:pdf-born-digital.pdf": "50bf29453f9bbc400a7a0e57e18f5cb8240fa3e6fcec4ab5cdad97a4bfcb0b9c",
+      "input:pdf-scanned.pdf": "5a425b5b5f7f2485f4902c26dbf0bd6b7fe1bc1fd8d19ec167459ef31e07ff5a",
+      "input:pdf/ar-clean.pdf": "8f7e42ed0e7a998a6365cf1d1e0cf235825471aff7ea58c9eb003444d3a7aefd",
+      "input:pdf/de-clean.pdf": "2e946b0f5f898705b429b3a8f135da0b96a8a9e8da52b826e07e677849fe7ad8",
+      "input:pdf/en-clean.pdf": "a38cf53f35a59bf73cfb949c351337e36256de957cca11d8da2c8d6512c975ab",
+      "input:pdf/ja-clean.pdf": "1bd88a0d65421565511cf5ddd3fb59bdb3ff30b54a5310eb3113d56a9334f24a",
+      "input:pdf/ko-clean.pdf": "34d867922ac4cd59ce8b091932ab88a746ec700232598f60557145194fedf87d",
+      "input:pdf/ru-clean.pdf": "a7c7866918db800d0379d54e7d9966406d68cc835600a1a2e42ec42e45c238d5",
+      "input:pdf/th-clean.pdf": "4e38f0dcca8f70492ec2bdb041c5b7ba2d63ae3fe9440a85d037316f5d473f1a",
+      "input:pdf/vi-clean.pdf": "d5bd480ff2a859bad3b52efb69ef8357ffc6ed39d0001d9c258ba13871658f49",
+      "input:pdf/zh-clean.pdf": "a3d858abcfca8cb509dd9792aa8391f7cb257275e7b408620f6112b923ee5155",
+      "input:pdf/zt-clean.pdf": "1ea4ea65de3f5e0268107acf9027a01225560fa1b544e0af85fca358de862891",
+      "input:plain-cp874.txt": "5a45885dd771252509a0737bcb542caf1e545f5e9aba01ffae9f9d17faa1a754",
+      "input:plain-utf8.txt": "3c5e1504b6da87f8c2db7ca0776de0c9d5a6100c2810665c3e2992e54d95e0d5",
+      "input:presentation.pptx": "e5436987edea7125bf08952bd5796d857641225917885f1b9894ea89242b3e26",
+      "input:spreadsheet-legacy.xls": "0f9f6e8992e11c2bb2823137088f83cd575744567010d3f995426f002e21ed20",
+      "input:spreadsheet.xlsx": "1fb51d4a793ffff954b08e5857db53c93c73056343a7687e216bc16ba99deb46",
+      "input:table.csv": "d5f2aa6ee45b1aea8906e26ead936652c6653bbdc7b21e9af792bfeb7e585eff",
+      "input:web-page-legacy.htm": "97512f012c973f5c3e56b04b17912a874a40220344a2192f7c6974f3e4ee4084",
+      "input:web-page.html": "12de34813700d787137766cca24efea2fc06a579e2b533b590a027daffc96284",
+      "input:word-document.docx": "5ad6854f4a98b3d6648739051a1824972956e45182795f8da03582754bdd9fc1",
+      "manifest": "2a67ec5a650114403d9dfc9b6fd4ccf313a656b5c873fcb5fad4241c55fc27e9",
+      "truth:pdf/ar-clean.pdf": "3c297f771b0d68b053c03acbdc5d74212933c32a5f49452787908c1fac21d3b6",
+      "truth:pdf/de-clean.pdf": "cba50aa75ad8a376fd11614d5fa79c0db18799b81fe039381f4bd4b62ad4bbe8",
+      "truth:pdf/en-clean.pdf": "e85126210fc40aa173ed8ee0ff95e4bd83a3eefa4670a1b2e628630d125027f8",
+      "truth:pdf/ja-clean.pdf": "0ac614f803496c8ed21fe1c4b70745af6e632668771fe95fdbbd1452023f3cbf",
+      "truth:pdf/ko-clean.pdf": "95749d18773f179590e8558fbe614eeca0aab460573883b3428035cc98586737",
+      "truth:pdf/ru-clean.pdf": "982aba2212cab8b2dd865d4e10bd05e3b729ab2edb5c41dc858e954b30946402",
+      "truth:pdf/th-clean.pdf": "3dfb6dc723abf03a276881c6e72cdb0afe194ad3522cc6480a7e9c9367e21f4b",
+      "truth:pdf/vi-clean.pdf": "85cd5f52beafe255be3bdf4006009f5b275dd05c90c89f02ac839ecdb4ea07c5",
+      "truth:pdf/zh-clean.pdf": "82ac300896a0a5156afe3e2ba5c456f9497dd3ccb0456f92a890c8edb6f2c14f",
+      "truth:pdf/zt-clean.pdf": "65fd9e17dabffc0006629798941b07dfc6759a610b09a72848d8fb429e1b21e4"
+    },
+    "os": {
+      "architecture": "AMD64",
+      "release": "11",
+      "system": "Windows",
+      "version": "10.0.26200"
+    },
+    "platform": "windows-rtx3090ti",
+    "purpose": "production",
+    "python": "3.13.13",
+    "scenario_plan": [
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-json.json:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-json.json",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-xml.xml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-xml.xml",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-yaml.yaml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-yaml.yaml",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-yml.yml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-yml.yml",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:ebook.epub:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "ebook.epub",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:email.msg:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "email.msg",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-bmp.bmp:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-bmp.bmp:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-jpeg.jpeg:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpeg.jpeg:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-jpg.jpg:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpg.jpg:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-png.png:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-png.png:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-tif.tif:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tif.tif:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-tiff.tiff:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tiff.tiff:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-webp.webp:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-webp.webp:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:markdown.md:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "markdown.md",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "pypdfium2"
+        ],
+        "id": "format:pdf-born-digital.pdf:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "docling"
+        ],
+        "id": "format:pdf-born-digital.pdf:docling:cpu",
+        "language": null,
+        "method": "docling",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:pdf-scanned.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:pdf-scanned.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:plain-cp874.txt:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "plain-cp874.txt",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:plain-utf8.txt:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "plain-utf8.txt",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:presentation.pptx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "presentation.pptx",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:spreadsheet-legacy.xls:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "spreadsheet-legacy.xls",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:spreadsheet.xlsx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "spreadsheet.xlsx",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:table.csv:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "table.csv",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:web-page-legacy.htm:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "web-page-legacy.htm",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:web-page.html:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "web-page.html",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:word-document.docx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "word-document.docx",
+        "suite": "format"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:ocr:cpu:thai",
+        "language": "thai",
+        "method": "ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:docling+ocr:cpu:thai",
+        "language": "thai",
+        "method": "docling+ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:ocr:cpu:japanese",
+        "language": "japanese",
+        "method": "ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:docling+ocr:cpu:japanese",
+        "language": "japanese",
+        "method": "docling+ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:docling+ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:docling+ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:ocr:cpu:korean",
+        "language": "korean",
+        "method": "ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:docling+ocr:cpu:korean",
+        "language": "korean",
+        "method": "docling+ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:ocr:cpu:cyrillic",
+        "language": "cyrillic",
+        "method": "ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:docling+ocr:cpu:cyrillic",
+        "language": "cyrillic",
+        "method": "docling+ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:ocr:cpu:arabic",
+        "language": "arabic",
+        "method": "ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      },
+      {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:docling+ocr:cpu:arabic",
+        "language": "arabic",
+        "method": "docling+ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      }
+    ],
+    "started_at_utc": "2026-08-14T17:49:12.234741+00:00",
+    "suite": "all",
+    "timing_policy": {
+      "max_warm_repeats": 7,
+      "min_sample_seconds": 0.25,
+      "variance_ratio": 0.1,
+      "warm_repeats": 3
+    },
+    "total_memory_mib": 65285.94921875
+  },
+  "samples": [
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "e5ac211c544d100d82ee7006a0e276cbf7797a73f355480d1c66748a8626a72b",
+      "resources": {
+        "peak_process_rss_mib": 33.90625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-json.json:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-json.json",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.02905312222222222,
+      "warm_operation_counts": [
+        9,
+        10,
+        8,
+        9,
+        10,
+        9,
+        10
+      ],
+      "warm_range_seconds": 0.006504857499999996,
+      "warm_samples_seconds": [
+        0.02905312222222222,
+        0.026890789999999998,
+        0.0329957375,
+        0.029319644444444445,
+        0.02649088,
+        0.029468599999999998,
+        0.027930080000000003
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "88cdea5b929e14f5ca32652ed3128af516e3f587224d4cde87becbccdb69eb8a",
+      "resources": {
+        "peak_process_rss_mib": 33.91015625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-xml.xml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-xml.xml",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.0350904,
+      "warm_operation_counts": [
+        8,
+        8,
+        7,
+        8,
+        7,
+        8,
+        6
+      ],
+      "warm_range_seconds": 0.0304720625,
+      "warm_samples_seconds": [
+        0.031593675,
+        0.0314469875,
+        0.0371058,
+        0.0350904,
+        0.03624668571428571,
+        0.0333188875,
+        0.06191905
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "42c27fe4248150874ba9c67b3e56f42186705e62b756796b945f6e6472a970ec",
+      "resources": {
+        "peak_process_rss_mib": 33.9140625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-yaml.yaml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-yaml.yaml",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.0314372125,
+      "warm_operation_counts": [
+        8,
+        8,
+        9,
+        8,
+        9,
+        8,
+        9
+      ],
+      "warm_range_seconds": 0.005387891666666672,
+      "warm_samples_seconds": [
+        0.033266425,
+        0.0328808375,
+        0.029529488888888886,
+        0.032655875,
+        0.02787853333333333,
+        0.0314372125,
+        0.030564955555555558
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "2842b26b3bf003975a14afe86812b83dfe87a0516dc498ce0b770d31491f8f17",
+      "resources": {
+        "peak_process_rss_mib": 33.91796875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:data-yml.yml:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "data-yml.yml",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.02887142222222222,
+      "warm_operation_counts": [
+        9,
+        9,
+        9
+      ],
+      "warm_range_seconds": 0.0022591222222222186,
+      "warm_samples_seconds": [
+        0.02887142222222222,
+        0.028439544444444447,
+        0.030698666666666666
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "35f61a6bdc86c575dafab5d18076ee7ec46dffca4d28c5c9336a64b27e5d19b5",
+      "resources": {
+        "peak_process_rss_mib": 177.21875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:ebook.epub:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "ebook.epub",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.15770955,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.03746805,
+      "warm_samples_seconds": [
+        0.1495129,
+        0.1768187,
+        0.15770955,
+        0.13935065,
+        0.1534823,
+        0.17178235,
+        0.1673675
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "38d660a2134f85fe296a99acf5c710273e2d869887a25072071ecfadbd38ad8d",
+      "resources": {
+        "peak_process_rss_mib": 237.99609375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:email.msg:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "email.msg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.15736125,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.06058364999999999,
+      "warm_samples_seconds": [
+        0.167881,
+        0.1508399,
+        0.1588302,
+        0.18876245,
+        0.13801125,
+        0.1281788,
+        0.15736125
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "10aa3e16556fc1ccd532f2a57949e40a744d7512893c99144bc4378021f8200b",
+      "resources": {
+        "peak_process_rss_mib": 329.2578125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-bmp.bmp:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 3.725991,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.24567970000000017,
+      "warm_samples_seconds": [
+        3.6283168,
+        3.8739965,
+        3.725991
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 22.4223314,
+      "marker_verified": true,
+      "output_sha256": "5204b7260d5132797559ef509db0e6e32185bfdb3d082226b3e455ae111d03ca",
+      "resources": {
+        "peak_process_rss_mib": 1574.109375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-bmp.bmp:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-bmp.bmp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.2613464,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.12750770000000067,
+      "warm_samples_seconds": [
+        6.2613464,
+        6.1808171,
+        6.3083248
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "c76ff6e3d4f0095dcc68523a4b516842381c7cfe29af08e708fe59b203f1ad33",
+      "resources": {
+        "peak_process_rss_mib": 1724.18359375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-jpeg.jpeg:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 3.7901112,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.27967330000000024,
+      "warm_samples_seconds": [
+        3.871579,
+        3.7901112,
+        3.5919057
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "92025730ae87c06f9fc2894974c4cf4b649dd5b4b95e6e033282a7f47b549d22",
+      "resources": {
+        "peak_process_rss_mib": 1660.29296875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpeg.jpeg:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpeg.jpeg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.1652828,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.14152400000000043,
+      "warm_samples_seconds": [
+        6.1652828,
+        6.255973,
+        6.114449
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "f8b98afd127a7739156770cf1ce25ffcd850767cdcd09b74ae5226f839b9a545",
+      "resources": {
+        "peak_process_rss_mib": 1826.96875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-jpg.jpg:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 3.7902225,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.3533522999999996,
+      "warm_samples_seconds": [
+        3.7162899,
+        4.0696422,
+        3.7902225
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "17a056dc19256a38cd6960eb432d464d1d32c9693c8176e1c3b691c1c0c36ccc",
+      "resources": {
+        "peak_process_rss_mib": 1720.08984375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-jpg.jpg:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-jpg.jpg",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.3336459,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.2601399999999998,
+      "warm_samples_seconds": [
+        6.3336459,
+        6.4315054,
+        6.1713654
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "9a0f070a8a373eb24b2fa7874119591d2ba8e6f63936f6326c225487e654f094",
+      "resources": {
+        "peak_process_rss_mib": 1993.6328125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-png.png:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 3.8137799,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.9565271000000006,
+      "warm_samples_seconds": [
+        3.2779266,
+        3.9829693,
+        3.6294515,
+        3.7885641,
+        4.2344537,
+        3.8137799,
+        3.9298411
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "fc1b44bcd25ce762a5987c2fa4816873ed2ad6dee66237ee0d39e32d15a853c3",
+      "resources": {
+        "peak_process_rss_mib": 1757.44921875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-png.png:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-png.png",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 7.0767315,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 4.5328531,
+      "warm_samples_seconds": [
+        6.1525477,
+        10.6854008,
+        7.4943814,
+        8.5927308,
+        7.0767315,
+        6.594401,
+        6.6457182
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "ebda44de1fcf8d5d8aeafb7073ff7fc07f4d5010f1034cd68ccd81f892b5e870",
+      "resources": {
+        "peak_process_rss_mib": 1813.1796875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-tif.tif:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.0709514,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.21256429999999993,
+      "warm_samples_seconds": [
+        4.1424435,
+        3.9298792,
+        4.0709514
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "3bf29d7dec3b4c675f1e28f82b5e00009d613992b4934e846c8fbf286d0f1dd6",
+      "resources": {
+        "peak_process_rss_mib": 1827.8359375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tif.tif:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tif.tif",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.5595783,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.04471710000000062,
+      "warm_samples_seconds": [
+        6.5816198,
+        6.5369027,
+        6.5595783
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "ddd6508e15424f14013600c94385eee45e00d0c338830cece6ea866aa63f21a6",
+      "resources": {
+        "peak_process_rss_mib": 1903.53515625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-tiff.tiff:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.089212,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.3761909000000001,
+      "warm_samples_seconds": [
+        4.089212,
+        4.0364604,
+        4.4126513
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "d160c2f7c7f5d072f4579242f00b752d487c799034899de39a532f791ddefb0a",
+      "resources": {
+        "peak_process_rss_mib": 1851.65625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-tiff.tiff:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-tiff.tiff",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.5919601,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.28587579999999946,
+      "warm_samples_seconds": [
+        6.5919601,
+        6.6178883,
+        6.3320125
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "40ae0e2ad37fb92cb095895605f73be942cbc9fe7ebc24d495904a55f736c1fb",
+      "resources": {
+        "peak_process_rss_mib": 2010.95703125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:image-webp.webp:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.4138014,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.5748758,
+      "warm_samples_seconds": [
+        4.3695683,
+        4.7203128,
+        4.8697922,
+        4.4138014,
+        4.3550623,
+        4.2949164,
+        4.574764
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "b735c1407ba0f33e285895d3c03a3e5629f296b20a507e8210bac82126d14fd8",
+      "resources": {
+        "peak_process_rss_mib": 2051.171875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "image",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:image-webp.webp:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "image-webp.webp",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.8253871,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.03727679999999989,
+      "warm_samples_seconds": [
+        6.8533033,
+        6.8253871,
+        6.8160265
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "abe3953b22cfd30daac78acb5272e678681f16c0fd1d9ec8a6486570dcb65d56",
+      "resources": {
+        "peak_process_rss_mib": 1798.0234375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:markdown.md:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "markdown.md",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.0331335125,
+      "warm_operation_counts": [
+        8,
+        8,
+        8
+      ],
+      "warm_range_seconds": 0.002414287500000001,
+      "warm_samples_seconds": [
+        0.0331335125,
+        0.0343870375,
+        0.03197275
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "pypdfium2",
+      "marker_verified": true,
+      "output_sha256": "f0906782bc8194d13a99eb5f3838e9e8d6168fa95838eafe8d63a108fd6901a7",
+      "resources": {
+        "peak_process_rss_mib": 1798.74609375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "pypdfium2"
+        ],
+        "id": "format:pdf-born-digital.pdf:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.010462720000000002,
+      "warm_operation_counts": [
+        25,
+        25,
+        23
+      ],
+      "warm_range_seconds": 0.0009998481739130413,
+      "warm_samples_seconds": [
+        0.010184104000000001,
+        0.010462720000000002,
+        0.011183952173913042
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "docling",
+      "initialization_seconds": 3.7459791,
+      "marker_verified": true,
+      "output_sha256": "ceca67099082be63eace5c5e29b88b7d29bb0b21c20289a63f20e2ce0916fa36",
+      "resources": {
+        "peak_process_rss_mib": 2087.203125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "born-digital-pdf",
+        "expected_backends": [
+          "docling"
+        ],
+        "id": "format:pdf-born-digital.pdf:docling:cpu",
+        "language": null,
+        "method": "docling",
+        "source": "pdf-born-digital.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 1.6883706,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.40509989999999996,
+      "warm_samples_seconds": [
+        1.533919,
+        1.6346479,
+        1.7046196,
+        1.6883706,
+        1.9390189,
+        1.6853837,
+        1.8323488
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "79a063ee2ebd770c79aefdc1700661ee6984bb30933b795f8a961e2c9c79bdf6",
+      "resources": {
+        "peak_process_rss_mib": 2230.00390625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "format:pdf-scanned.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.457137,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.2850028,
+      "warm_samples_seconds": [
+        4.457137,
+        4.299728,
+        4.5847308
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "28e5392f8ac5f80582cd87527b213266a3677da07f69b772c13a615a91c7cd21",
+      "resources": {
+        "peak_process_rss_mib": 2253.78515625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "format:pdf-scanned.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf-scanned.pdf",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 7.1041937,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.1907002000000002,
+      "warm_samples_seconds": [
+        7.2297654,
+        7.0390652,
+        7.1041937
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "782e83441998a9b60975447adb15453cdcd946140cb3069fb4e428b73d830242",
+      "resources": {
+        "peak_process_rss_mib": 2253.78515625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:plain-cp874.txt:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "plain-cp874.txt",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.046705699999999996,
+      "warm_operation_counts": [
+        6,
+        6,
+        5,
+        6,
+        6,
+        5,
+        6
+      ],
+      "warm_range_seconds": 0.012797750000000004,
+      "warm_samples_seconds": [
+        0.04496393333333334,
+        0.04482795,
+        0.05364134,
+        0.046316949999999996,
+        0.046705699999999996,
+        0.0576257,
+        0.050864849999999996
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "3c5e1504b6da87f8c2db7ca0776de0c9d5a6100c2810665c3e2992e54d95e0d5",
+      "resources": {
+        "peak_process_rss_mib": 2253.78515625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:plain-utf8.txt:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "plain-utf8.txt",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.04734973333333333,
+      "warm_operation_counts": [
+        6,
+        5,
+        6,
+        6,
+        7,
+        6,
+        6
+      ],
+      "warm_range_seconds": 0.009760193333333327,
+      "warm_samples_seconds": [
+        0.04854948333333334,
+        0.05160106,
+        0.04184086666666667,
+        0.044101966666666666,
+        0.04194677142857143,
+        0.04810685,
+        0.04734973333333333
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "225425991e5cf113ef342d7c73252b6fa4441224da3428731c3d026e450b0b1e",
+      "resources": {
+        "peak_process_rss_mib": 2202.29296875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:presentation.pptx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "presentation.pptx",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.1983867,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.051566,
+      "warm_samples_seconds": [
+        0.1987005,
+        0.19785035,
+        0.21802475,
+        0.16645875,
+        0.1983867,
+        0.2097405,
+        0.19833115
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "0091c827f40a6f32dc9282be6b38981327edd2825bfb7d6f44ced1be02d7ee29",
+      "resources": {
+        "peak_process_rss_mib": 2282.29296875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:spreadsheet-legacy.xls:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "spreadsheet-legacy.xls",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.19491845,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.05337105,
+      "warm_samples_seconds": [
+        0.18231795,
+        0.1756153,
+        0.21840165,
+        0.19491845,
+        0.16570015,
+        0.2190712,
+        0.20229235
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "76f632128c4500a681144f0fd8c8688555c1f5beb06cf3c63978ef66d8269aca",
+      "resources": {
+        "peak_process_rss_mib": 2254.89453125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:spreadsheet.xlsx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "spreadsheet.xlsx",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.20080815,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        1
+      ],
+      "warm_range_seconds": 0.08699005000000001,
+      "warm_samples_seconds": [
+        0.20080815,
+        0.16435615,
+        0.22365885,
+        0.1917487,
+        0.1916352,
+        0.20704695,
+        0.2513462
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "plain",
+      "marker_verified": true,
+      "output_sha256": "d5f2aa6ee45b1aea8906e26ead936652c6653bbdc7b21e9af792bfeb7e585eff",
+      "resources": {
+        "peak_process_rss_mib": 2254.89453125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "direct-text",
+        "expected_backends": [
+          "plain"
+        ],
+        "id": "format:table.csv:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "table.csv",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.05021900000000001,
+      "warm_operation_counts": [
+        5,
+        8,
+        8,
+        8,
+        6,
+        5,
+        5
+      ],
+      "warm_range_seconds": 0.0225780575,
+      "warm_samples_seconds": [
+        0.055007640000000003,
+        0.03483155,
+        0.0325580625,
+        0.0363966625,
+        0.05021900000000001,
+        0.05281932,
+        0.05513612
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "7524a0352f7193b62858a2ac29b7db2cc955dde1356d65d2d01f0c6a2b499939",
+      "resources": {
+        "peak_process_rss_mib": 2296.6796875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:web-page-legacy.htm:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "web-page-legacy.htm",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.18183915,
+      "warm_operation_counts": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.07766619999999999,
+      "warm_samples_seconds": [
+        0.1747783,
+        0.16709825,
+        0.24475355,
+        0.18183915,
+        0.16708735,
+        0.1960691,
+        0.19940225
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "6d6efb03d06f578cb8acced3baf657ed8b132b66a497af628a5eff513e46a36b",
+      "resources": {
+        "peak_process_rss_mib": 2256.171875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:web-page.html:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "web-page.html",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.1755891,
+      "warm_operation_counts": [
+        2,
+        2,
+        2
+      ],
+      "warm_range_seconds": 0.015892299999999998,
+      "warm_samples_seconds": [
+        0.1755891,
+        0.1669089,
+        0.1828012
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "markitdown",
+      "marker_verified": true,
+      "output_sha256": "16fdbbdab3f72646d8889e871d0df43532a70a07f0669ad366aa90d1071dc040",
+      "resources": {
+        "peak_process_rss_mib": 2195.6484375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "office-web",
+        "expected_backends": [
+          "markitdown"
+        ],
+        "id": "format:word-document.docx:default:cpu",
+        "language": null,
+        "method": "default",
+        "source": "word-document.docx",
+        "suite": "format"
+      },
+      "status": "success",
+      "warm_median_seconds": 0.4103687,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.5358134,
+      "warm_samples_seconds": [
+        0.7083191,
+        0.4103687,
+        0.8523249,
+        0.3800573,
+        0.8785543,
+        0.3427409,
+        0.4015042
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "0a00532798ec84d5df83fe79f957d7a8325ab6127e46c4a53d4dfa055fa82107",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2393.7265625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.5987737,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.27950750000000024,
+      "warm_samples_seconds": [
+        6.7163345,
+        6.436827,
+        6.5987737
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "b46e95af6b6ccf804b14cdca395570dcf393442df367fbbf836bbcdc028bc92f",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2344.70703125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/en-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/en-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.9905399,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.43616480000000024,
+      "warm_samples_seconds": [
+        7.3754288,
+        6.939264,
+        6.9905399
+      ]
+    },
+    {
+      "adaptive_warm_repeats": true,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "b7cbd41e9487493ab9c9d880fab29b996f34e9d99e3519182e750e8a9cf5c5d5",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2443.11328125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.7011685,
+      "warm_operation_counts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 1.6147496000000006,
+      "warm_samples_seconds": [
+        6.8992117,
+        6.3785714,
+        6.1120861,
+        5.7011685,
+        5.5272059,
+        5.3552462,
+        5.2844621
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "06936e65cfc92e8f5e6a3d107143722be37ba5bbb019df7e8ad901285b936d10",
+      "quality": {
+        "cer": 0.0,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2243.2421875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/de-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/de-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 5.7971809,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.2455892000000004,
+      "warm_samples_seconds": [
+        5.7971809,
+        5.6775321,
+        5.9231213
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "496a01821baa6b5c59127093282e7c9e4b5385b57cb3ff13c9843ed5b31a8c47",
+      "quality": {
+        "cer": 0.15,
+        "cer_bag": 0.19029850746268656,
+        "cer_ns": 0.19029850746268656
+      },
+      "resources": {
+        "peak_process_rss_mib": 2361.265625,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:ocr:cpu:latin",
+        "language": "latin",
+        "method": "ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 4.9737186,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.47260100000000005,
+      "warm_samples_seconds": [
+        5.4047923,
+        4.9321913,
+        4.9737186
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "8cfa7417f57e2d0765ce4a92923e94eb889500331af1dd035ad6b5d7bdd4d54c",
+      "quality": {
+        "cer": 0.22647058823529412,
+        "cer_bag": 0.26119402985074625,
+        "cer_ns": 0.26865671641791045
+      },
+      "resources": {
+        "peak_process_rss_mib": 2398.40234375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/vi-clean.pdf:docling+ocr:cpu:latin",
+        "language": "latin",
+        "method": "docling+ocr",
+        "source": "pdf/vi-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.4238591,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.14031579999999977,
+      "warm_samples_seconds": [
+        6.4791897,
+        6.3388739,
+        6.4238591
+      ]
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:ocr:cpu:thai",
+        "language": "thai",
+        "method": "ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/th-clean.pdf:docling+ocr:cpu:thai",
+        "language": "thai",
+        "method": "docling+ocr",
+        "source": "pdf/th-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "9568dece66004085602e27cca3cc16fe203d19d9a85c22123b7f01609d5c6333",
+      "quality": {
+        "cer": 0.0625,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2464.13671875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:ocr:cpu:japanese",
+        "language": "japanese",
+        "method": "ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 29.8774061,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.5899099999999997,
+      "warm_samples_seconds": [
+        29.8774061,
+        30.1861802,
+        29.5962702
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 10.1566802,
+      "marker_verified": true,
+      "output_sha256": "f40fcb020c52b2a73ccdfb0241b37d870262878a2808d367ca7f08b1e59a11fc",
+      "quality": {
+        "cer": 0.09090909090909091,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2753.5859375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ja-clean.pdf:docling+ocr:cpu:japanese",
+        "language": "japanese",
+        "method": "docling+ocr",
+        "source": "pdf/ja-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.377043,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.20712809999999937,
+      "warm_samples_seconds": [
+        6.377043,
+        6.5562789,
+        6.3491508
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "98faa1daabc3e2535932583b1a29e906805b5237a6ebf64c0f569e2118e0a0d1",
+      "quality": {
+        "cer": 0.04316546762589928,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 2956.578125,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 23.6577703,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.1867922999999969,
+      "warm_samples_seconds": [
+        23.6577703,
+        23.5281574,
+        23.7149497
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "initialization_seconds": 8.8510234,
+      "marker_verified": true,
+      "output_sha256": "c3bc37756833c708c0e45cb5bdb91e66c444ee40c1c82fb4fa4b4836bf0d489c",
+      "quality": {
+        "cer": 0.05755395683453238,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 3307.26171875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zh-clean.pdf:docling+ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zh-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.2411888,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.2879277,
+      "warm_samples_seconds": [
+        6.3201816,
+        6.2411888,
+        6.0322539
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "rapidocr",
+      "marker_verified": true,
+      "output_sha256": "fdfb833530958d201ef32a20378b9629600fca1a157a2f0722ab399b668c71eb",
+      "quality": {
+        "cer": 0.02877697841726619,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 3408.93359375,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 23.6189982,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.32575049999999806,
+      "warm_samples_seconds": [
+        23.7660903,
+        23.6189982,
+        23.4403398
+      ]
+    },
+    {
+      "adaptive_warm_repeats": false,
+      "backend": "docling+ocr",
+      "marker_verified": true,
+      "output_sha256": "d4e3fbb21062cd8714e43e6dc68e158fd64d9f3b9749d83bf5d0c82a7debea12",
+      "quality": {
+        "cer": 0.07194244604316546,
+        "cer_bag": 0.0,
+        "cer_ns": 0.0
+      },
+      "resources": {
+        "peak_process_rss_mib": 3443.69921875,
+        "process_rss_status": "available",
+        "pytorch_allocator_peak_mib": null,
+        "pytorch_allocator_peak_status": "not-applicable-for-cpu"
+      },
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/zt-clean.pdf:docling+ocr:cpu:chinese",
+        "language": "chinese",
+        "method": "docling+ocr",
+        "source": "pdf/zt-clean.pdf",
+        "suite": "language"
+      },
+      "status": "success",
+      "warm_median_seconds": 6.1627055,
+      "warm_operation_counts": [
+        1,
+        1,
+        1
+      ],
+      "warm_range_seconds": 0.13299400000000006,
+      "warm_samples_seconds": [
+        6.1627055,
+        6.2207271,
+        6.0877331
+      ]
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:ocr:cpu:korean",
+        "language": "korean",
+        "method": "ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ko-clean.pdf:docling+ocr:cpu:korean",
+        "language": "korean",
+        "method": "docling+ocr",
+        "source": "pdf/ko-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:ocr:cpu:cyrillic",
+        "language": "cyrillic",
+        "method": "ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ru-clean.pdf:docling+ocr:cpu:cyrillic",
+        "language": "cyrillic",
+        "method": "docling+ocr",
+        "source": "pdf/ru-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "ocrmac",
+          "rapidocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:ocr:cpu:arabic",
+        "language": "arabic",
+        "method": "ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    },
+    {
+      "error_type": "NoEngineFor",
+      "scenario": {
+        "device": "cpu",
+        "document_type": "scanned-pdf",
+        "expected_backends": [
+          "docling+ocr"
+        ],
+        "id": "language:pdf/ar-clean.pdf:docling+ocr:cpu:arabic",
+        "language": "arabic",
+        "method": "docling+ocr",
+        "source": "pdf/ar-clean.pdf",
+        "suite": "language"
+      },
+      "status": "unsupported"
+    }
+  ],
+  "schema_version": 1
+}

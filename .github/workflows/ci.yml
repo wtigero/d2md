@@ -1,0 +1,228 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python-version: '3.10'
+          - os: ubuntu-latest
+            python-version: '3.11'
+          - os: macos-latest
+            python-version: '3.12'
+          - os: windows-latest
+            python-version: '3.13'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install package and test dependencies
+        run: python -m pip install ".[dev]"
+      - name: Show interpreter and package origin
+        run: >-
+          python -c "import sys, d2md; print(f'Python: {sys.executable} ({sys.version})'); print(f'd2md: {d2md.__file__}')"
+      - name: Check installed dependencies
+        run: python -m pip check
+      - name: Run test suite
+        run: python -m pytest -ra
+      - name: Compile source and tests
+        run: python -m compileall -q src tests
+
+  package:
+    name: Build and smoke-test distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install packaging tools
+        run: python -m pip install "build==1.3.0" "twine==7.0.0"
+      - name: Build wheel and source distribution
+        run: python -m build --wheel --sdist
+      - name: Validate distribution metadata
+        run: python -m twine check dist/*
+      - name: Check package descriptions and source distribution contents
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob
+          import re
+          import tarfile
+          from pathlib import PurePosixPath
+          import zipfile
+
+          [sdist] = glob.glob("dist/*.tar.gz")
+          with tarfile.open(sdist) as archive:
+              members = archive.getmembers()
+              names = archive.getnames()
+              member_paths = [
+                  (member, PurePosixPath(member.name)) for member in members
+              ]
+              if any(
+                  path.is_absolute()
+                  or not path.parts
+                  or any(part in (".", "..") for part in path.parts)
+                  for _, path in member_paths
+              ):
+                  raise SystemExit("sdist has an unsafe member path")
+              archive_roots = {path.parts[0] for _, path in member_paths}
+              if len(archive_roots) != 1:
+                  raise SystemExit(f"sdist must have one root directory: {archive_roots}")
+              [archive_root] = archive_roots
+              relative_members = {}
+              for member, path in member_paths:
+                  relative_path = PurePosixPath(*path.parts[1:])
+                  if relative_path in relative_members:
+                      raise SystemExit(
+                          f"sdist has duplicate normalized member path: {relative_path}"
+                      )
+                  relative_members[relative_path] = member
+              package_info = PurePosixPath("PKG-INFO")
+              if package_info not in relative_members:
+                  raise SystemExit("sdist is missing PKG-INFO")
+              source_description = archive.extractfile(
+                  relative_members[package_info]
+              ).read().decode("utf-8")
+
+          [wheel] = glob.glob("dist/*.whl")
+          with zipfile.ZipFile(wheel) as archive:
+              [metadata] = [
+                  name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+              ]
+              wheel_description = archive.read(metadata).decode("utf-8")
+
+          forbidden = (
+              "/.claude/",
+              "/.github/",
+              "/.superpowers/",
+              "/.worktrees/",
+              "/docs/superpowers/",
+          )
+          leaked = [name for name in names if any(part in name for part in forbidden)]
+          if leaked:
+              raise SystemExit(f"internal files leaked into sdist: {leaked}")
+
+          historical_results = (
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/macos-arm64-cpu.json",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/macos-arm64-mps.json",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/summary.csv",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/ubuntu-gtx1060-cpu.json",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/ubuntu-gtx1060-cuda.json",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/windows-rtx3090ti-cpu.json",
+              "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/windows-rtx3090ti-cuda.json",
+          )
+          result_members = [
+              (member, path)
+              for path, member in relative_members.items()
+              if path.parts[:2] == ("bench", "results")
+          ]
+          invalid_result_members = sorted(
+              f"{path.as_posix()} ({'symlink' if member.issym() else 'hardlink' if member.islnk() else 'special'})"
+              for member, path in result_members
+              if not member.isdir() and not member.isfile()
+          )
+          if invalid_result_members:
+              raise SystemExit(
+                  "historical benchmark evidence has non-regular members: "
+                  f"{invalid_result_members}"
+              )
+          actual_results = {
+              path.as_posix()
+              for member, path in result_members
+              if member.isfile()
+          }
+          missing = sorted(set(historical_results) - actual_results)
+          unexpected = sorted(actual_results - set(historical_results))
+          if missing or unexpected:
+              raise SystemExit(
+                  "historical benchmark evidence mismatch: "
+                  f"missing={missing}, unexpected={unexpected}"
+              )
+
+          release_url = "https://github.com/wtigero/d2md/blob/v0.1.0/"
+          for label, description in (
+              ("wheel METADATA", wheel_description),
+              ("sdist PKG-INFO", source_description),
+          ):
+              targets = re.findall(r"\]\(([^)]+)\)", description)
+              relative = [
+                  target
+                  for target in targets
+                  if not target.startswith("#") and "://" not in target
+              ]
+              if relative:
+                  raise SystemExit(f"{label} has relative cross-file links: {relative}")
+              if not any(target.startswith(release_url) for target in targets):
+                  raise SystemExit(f"{label} is missing release-tag README links")
+          PY
+      - name: Install wheel and source distribution in isolated environments
+        run: |
+          python -m venv .wheel-smoke-venv
+          .wheel-smoke-venv/bin/python -m pip install --no-cache-dir dist/*.whl
+          python -m venv .sdist-smoke-venv
+          .sdist-smoke-venv/bin/python -m pip install --no-cache-dir dist/*.tar.gz
+      - name: Smoke-test installed distributions
+        shell: bash
+        run: |
+          set -o pipefail
+          scratch_dir="$(mktemp -d)"
+          trap 'rm -rf "$scratch_dir"' EXIT
+          cd "$scratch_dir"
+          printf '%s\n' 'CI stdout smoke test.' > input.txt
+          for environment in .wheel-smoke-venv .sdist-smoke-venv; do
+            environment_bin="$GITHUB_WORKSPACE/$environment/bin"
+            installed_version="$("$environment_bin/python" -c "from importlib.metadata import version; print(version('d2md'))")"
+            test "$("$environment_bin/d2md" --version)" = "d2md $installed_version"
+            "$environment_bin/d2md" --capabilities --json | "$environment_bin/python" -m json.tool > /dev/null
+            "$environment_bin/d2md" input.txt --stdout | grep -F 'CI stdout smoke test.'
+            test ! -e md-out
+          done
+      - name: Test extracted source distribution
+        shell: bash
+        run: |
+          set -o pipefail
+          sdist_count="$(find dist -maxdepth 1 -type f -name '*.tar.gz' | wc -l)"
+          test "$sdist_count" -eq 1
+          sdist_path="$(find dist -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
+          test -n "$sdist_path"
+          test_dir="$(mktemp -d)"
+          trap 'rm -rf "$test_dir"' EXIT
+          tar -xzf "$sdist_path" -C "$test_dir"
+          source_count="$(find "$test_dir" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          test "$source_count" -eq 1
+          source_dir="$(find "$test_dir" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+          test -f "$source_dir/pyproject.toml"
+          python -m venv "$test_dir/venv"
+          (
+            cd "$source_dir"
+            "$test_dir/venv/bin/python" -m pip install --no-cache-dir '.[dev]'
+            "$test_dir/venv/bin/python" -m pytest -ra
+          )

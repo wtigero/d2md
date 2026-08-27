@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.claude/
+.coverage
+.coverage.*
+.venv/
+.venv-smoke/
+.venv-smoke-profile/
+.worktrees/
+build/
+dist/
+htmlcov/
+*.egg-info/
+.mypy_cache/
+.nox/
+.pytest_cache/
+.ruff_cache/
+.tox/
+
+# Generated application and benchmark output
+md-out/
+corpus/
+bench-out/
+examples/generated/
+examples/converted/
