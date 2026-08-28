@@ -969,6 +969,34 @@ def _build_markitdown(validated_formats: frozenset[str]):
         XlsxConverter,
         YouTubeConverter,
     )
+    from markitdown import DocumentConverterResult
+    import pandas as pd
+
+    def convert_spreadsheet(file_stream, engine, html_converter, **kwargs):
+        sheets = pd.read_excel(
+            file_stream,
+            sheet_name=None,
+            engine=engine,
+            keep_default_na=False,
+        )
+        sections = []
+        for sheet_name, sheet in sheets.items():
+            html = sheet.to_html(index=False, na_rep="")
+            table = html_converter.convert_string(html, **kwargs).markdown.strip()
+            sections.append(f"## {sheet_name}\n{table}")
+        return DocumentConverterResult(markdown="\n\n".join(sections))
+
+    class SourcePreservingXlsxConverter(XlsxConverter):
+        def convert(self, file_stream, stream_info, **kwargs):
+            return convert_spreadsheet(
+                file_stream, "openpyxl", self._html_converter, **kwargs
+            )
+
+    class SourcePreservingXlsConverter(XlsConverter):
+        def convert(self, file_stream, stream_info, **kwargs):
+            return convert_spreadsheet(
+                file_stream, "xlrd", self._html_converter, **kwargs
+            )
 
     converter = MarkItDown(enable_builtins=False)
     converter.register_converter(PlainTextConverter(), priority=10.0)
@@ -979,8 +1007,8 @@ def _build_markitdown(validated_formats: frozenset[str]):
         YouTubeConverter(),
         BingSerpConverter(),
         DocxConverter(),
-        XlsxConverter(),
-        XlsConverter(),
+        SourcePreservingXlsxConverter(),
+        SourcePreservingXlsConverter(),
         PptxConverter(),
         AudioConverter(),
     ]

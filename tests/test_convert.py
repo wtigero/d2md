@@ -416,6 +416,52 @@ def test_plain_text_passes_through(tmp_path):
     assert result.markdown == body
 
 
+@pytest.mark.parametrize("suffix", (".xlsx", ".xls"))
+def test_spreadsheet_empty_cells_render_as_blank_table_cells(tmp_path, suffix):
+    source = tmp_path / f"fields{suffix}"
+    if suffix == ".xlsx":
+        from openpyxl import Workbook
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(["Field", "Value"])
+        sheet.append(["Missing", None])
+        sheet.append(["Literal", "NaN"])
+        sheet.append(["Text", "Contains NaN text"])
+        sheet.append(["Formula error", "#REF!"])
+        workbook.save(source)
+    else:
+        import xlwt
+
+        workbook = xlwt.Workbook()
+        sheet = workbook.add_sheet("Sheet1")
+        sheet.write(0, 0, "Field")
+        sheet.write(0, 1, "Value")
+        sheet.write(1, 0, "Missing")
+        sheet.write(2, 0, "Literal")
+        sheet.write(2, 1, "NaN")
+        sheet.write(3, 0, "Text")
+        sheet.write(3, 1, "Contains NaN text")
+        sheet.write(4, 0, "Formula error")
+        sheet.write(4, 1, xlwt.Formula("1/0"))
+        workbook.save(str(source))
+
+    result = convert(source)
+    markdown = result.markdown
+
+    assert result.backend == "markitdown"
+    missing_row = next(
+        line for line in markdown.splitlines() if line.startswith("| Missing |")
+    )
+    assert missing_row == "| Missing |  |"
+    formula_row = next(
+        line for line in markdown.splitlines() if line.startswith("| Formula error |")
+    )
+    assert formula_row == "| Formula error |  |"
+    assert "| Literal | NaN |" in markdown
+    assert "Contains NaN text" in markdown
+
+
 def test_legacy_thai_text_file_survives(tmp_path):
     src = tmp_path / "legacy.txt"
     body = "ทดสอบภาษาไทย น้ำจำกัด ระบบอ่านไฟล์ทดสอบ"
