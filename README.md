@@ -20,7 +20,7 @@ their first explicit use.
 > **macOS highlight: accurate OCR without a model download.** Install the OCR
 > profile once and direct `--ocr` uses Apple Vision supplied by macOS, locally—no
 > API key and no separate OCR model or weight download. In the promoted
-> benchmark for commit [`7203499`](https://github.com/wtigero/d2md/blob/v0.1.0/bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md),
+> benchmark for commit [`7203499`](https://github.com/wtigero/d2md/blob/v0.1.1/bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md),
 > direct Apple Vision OCR measured `0` to `0.0299` no-space character error
 > rate (`0%` to `2.99%`) across ten clean fixtures, including Thai at `0.0034`
 > (`0.34%`). This is historical, commit-pinned, fixture-bounded evidence rather
@@ -57,7 +57,7 @@ not load PyTorch.
 | Direct OCR on Linux or Windows | CPU | RapidOCR weights may be retrieved |
 | Docling | CPU; acceleration is optional | Docling artifacts may be retrieved |
 
-The [lowest-memory tested system](https://github.com/wtigero/d2md/blob/v0.1.0/docs/verification.md#hardware-and-relevant-packages)—not
+The [lowest-memory tested system](https://github.com/wtigero/d2md/blob/v0.1.1/docs/verification.md#hardware-and-relevant-packages)—not
 a minimum requirement—was an Apple M3 with 16 GiB RAM. Base, direct Apple
 Vision OCR, Docling CPU, and Docling MPS all passed there. Lower-memory hosts
 may work but have not been qualified, and no fixed RAM or storage minimum is
@@ -274,14 +274,14 @@ repeat its command with `--force`.
 
 ### Source and release verification
 
-For source installs or verifying the exact `v0.1.0` release tag, use:
+For source installs or verifying the exact `v0.1.1` release tag, use:
 
 ```bash
-uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.1.0"
+uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.1.1"
 ```
 
 Tags and public releases are promoted through the gates in
-[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.1.0/docs/release-process.md).
+[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/release-process.md).
 
 For repository development, create an isolated environment and install the
 test plus optional dependencies:
@@ -425,8 +425,8 @@ the platform-specific output safeguards above remain active.
 ## Manual verification
 
 Synthetic examples cover every accepted extension. See
-[examples/README.md](https://github.com/wtigero/d2md/blob/v0.1.0/examples/README.md) for the manifest and direct driver.
-See the dated [manual verification results](https://github.com/wtigero/d2md/blob/v0.1.0/docs/verification.md) for the
+[examples/README.md](https://github.com/wtigero/d2md/blob/v0.1.1/examples/README.md) for the manifest and direct driver.
+See the dated [manual verification results](https://github.com/wtigero/d2md/blob/v0.1.1/docs/verification.md) for the
 tested operating systems, profiles, devices, and fixture counts.
 
 Run isolated profiles on Linux or macOS:
@@ -455,7 +455,7 @@ verify expected markers. No CI is required for these manual release checks.
 ## Controlled performance measurements
 
 The manual smoke checks above prove functionality; they are not speed claims.
-The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.1.0/bench/README.md) measures the current
+The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.1.1/bench/README.md) measures the current
 explicit routes by operating system, CPU/accelerator device, document type,
 method, and language. It records initialization separately from warm timing,
 quality and resource metrics, and promotes results only after all six required
@@ -463,7 +463,7 @@ hardware runs validate against the same commit and fixture hashes rebuilt from
 the clean promotion checkout.
 
 The first promoted result covers commit
-[`7203499`](https://github.com/wtigero/d2md/blob/v0.1.0/bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md):
+[`7203499`](https://github.com/wtigero/d2md/blob/v0.1.1/bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md):
 219 scenarios across macOS CPU/MPS, Ubuntu CPU/GTX 1060 CUDA, and Windows
 CPU/RTX 3090 Ti CUDA. All six runs used the same fixture hashes. There were no
 unexpected conversion errors.
@@ -517,8 +517,8 @@ detection can interpret CP874 as an unrelated encoding. `d2md` validates a
 CP874 candidate by its Thai character ratio before accepting it.
 
 The research that motivated these guards is preserved in
-[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.1.0/docs/findings.md). OCR corpus methodology lives in
-[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.1.0/docs/ocr.md). Those research measurements are historical
+[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/findings.md). OCR corpus methodology lives in
+[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/ocr.md). Those research measurements are historical
 evidence, not performance claims for the current installation profiles.
 
 ## Limitations

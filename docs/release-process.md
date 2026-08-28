@@ -57,10 +57,10 @@ Complete these gates in order:
     verified tag, and attach only artifacts built and validated from the exact
     candidate SHA.
 12. **PyPI publication.** Obtain separate explicit approval to upload the exact
-    validated source distribution and wheel for `d2md==0.1.0`; do not rebuild
+    validated source distribution and wheel for `d2md==<version>`; do not rebuild
     artifacts. In one fresh environment without repository credentials, run
     `uv tool install d2md`; in another, run `pip install d2md`. Both installed
-    commands must report `d2md 0.1.0` and pass a representative `--stdout`
+    commands must report `d2md <version>` and pass a representative `--stdout`
     smoke conversion. This required gate must pass before announcement.
 13. **Announcement.** Announce the release only after every preceding gate,
     including the separately approved PyPI publication, has passed and its

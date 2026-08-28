@@ -8,7 +8,7 @@ except ModuleNotFoundError:  # Python 3.10
 
 ROOT = Path(__file__).parents[1]
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.0/"
+RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.1/"
 HISTORICAL_RESULTS = (
     "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
     "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/macos-arm64-cpu.json",
