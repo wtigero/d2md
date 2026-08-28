@@ -4,6 +4,8 @@ Convert local documents to Markdown for reading, search, RAG, scripts, and AI
 agents. The default path stays lightweight; OCR and Docling run only when both
 installed and explicitly requested.
 
+![d2md installs from PyPI and converts a local PDF to Markdown on standard output](https://raw.githubusercontent.com/wtigero/d2md/main/assets/demo.gif)
+
 - Convert one file or a whole directory tree.
 - Read normal PDFs without loading an ML stack.
 - OCR scanned PDFs and images only with `--ocr`.
