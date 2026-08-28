@@ -6,6 +6,11 @@ All notable changes are recorded here.
 
 No changes yet.
 
+## [0.1.1]
+
+- Render empty and error-valued Excel cells as blank Markdown table cells
+  without deleting source text whose value is exactly `NaN`.
+
 ## [0.1.0]
 
 - Local conversion of text files, Office/web documents, and PDFs to Markdown,

@@ -167,7 +167,7 @@ jobs:
                   f"missing={missing}, unexpected={unexpected}"
               )
 
-          release_url = "https://github.com/wtigero/d2md/blob/v0.1.0/"
+          release_url = "https://github.com/wtigero/d2md/blob/v0.1.1/"
           for label, description in (
               ("wheel METADATA", wheel_description),
               ("sdist PKG-INFO", source_description),
