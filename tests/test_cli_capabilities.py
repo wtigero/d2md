@@ -152,4 +152,4 @@ def test_version_reports_the_distribution_version(capsys):
         cli.main(["--version"])
 
     assert raised.value.code == 0
-    assert capsys.readouterr().out == "d2md 0.1.1\n"
+    assert capsys.readouterr().out == "d2md 0.1.2\n"

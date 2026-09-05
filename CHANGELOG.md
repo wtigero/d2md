@@ -4,6 +4,10 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.1.2]
+
 - Add numbered `<!-- Page number: N -->` markers to PDF Markdown output for
   reliable page-aware RAG chunking across the default, OCR, and Docling routes.
 - Annotate unsplittable multi-page Docling content with
