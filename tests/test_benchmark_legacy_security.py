@@ -84,9 +84,11 @@ def _assert_secure_result(destination: Path, target: Path) -> str:
     assert target.read_text(encoding="utf-8") == "outside"
     assert not destination.is_symlink()
     serialized = destination.read_text(encoding="utf-8")
-    assert destination.read_bytes() == json.dumps(
-        json.loads(serialized), indent=2
-    ).encode("utf-8")
+    reference = target.parent / "reference-result.json"
+    reference.write_text(
+        json.dumps(json.loads(serialized), indent=2), encoding="utf-8"
+    )
+    assert destination.read_bytes() == reference.read_bytes()
     assert not list(destination.parent.glob(f".{destination.name}.*.tmp"))
     return serialized
 
@@ -380,7 +382,9 @@ def test_legacy_vlm_escapes_conversion_exception(tmp_path, monkeypatch, capsys):
     _assert_visible_escapes(capsys.readouterr().out)
 
 
-def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
+def test_legacy_vlm_escapes_result_destination_without_opening_control_filename(
+    tmp_path, monkeypatch, capsys
+):
     corpus = _write_runner_corpus(tmp_path, "en-clean")
     hostile_spec = "ไทย\x1b[31m\x7f\x85\u202e"
     converted = SimpleNamespace(
@@ -391,8 +395,12 @@ def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
         "converter",
         lambda _spec: SimpleNamespace(convert=lambda _path: converted),
     )
-    filename = f"results-vlm-{hostile_spec}.json"
-    destination, target = _prepare_result_symlink(corpus, filename, tmp_path)
+    writes = []
+
+    def capture_result(path, text):
+        writes.append((path, text))
+
+    monkeypatch.setattr(legacy_vlm, "write_text_atomic", capture_result)
 
     assert legacy_vlm.main(
         [str(legacy_vlm.__file__), str(corpus), hostile_spec]
@@ -402,9 +410,34 @@ def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
     _assert_visible_escapes(output)
     assert "built in" in output
     assert "→" in output
-    assert destination == corpus / filename
-    serialized = _assert_secure_result(destination, target)
+    assert len(writes) == 1
+    destination, serialized = writes[0]
+    assert destination == corpus / f"results-vlm-{hostile_spec}.json"
     assert json.loads(serialized)["engine"] == hostile_spec
+
+
+def test_legacy_vlm_atomic_writer_replaces_symlink_without_touching_target(
+    tmp_path, monkeypatch
+):
+    corpus = _write_runner_corpus(tmp_path, "en-clean")
+    converted = SimpleNamespace(
+        document=SimpleNamespace(export_to_markdown=lambda: "ไทย")
+    )
+    monkeypatch.setattr(
+        legacy_vlm,
+        "converter",
+        lambda _spec: SimpleNamespace(convert=lambda _path: converted),
+    )
+    destination, target = _prepare_result_symlink(
+        corpus, "results-vlm-SAFE_SPEC.json", tmp_path
+    )
+
+    assert legacy_vlm.main(
+        [str(legacy_vlm.__file__), str(corpus), "SAFE_SPEC"]
+    ) == 0
+
+    serialized = _assert_secure_result(destination, target)
+    assert json.loads(serialized)["engine"] == "SAFE_SPEC"
 
 
 @pytest.mark.parametrize("module", (legacy_report, legacy_support))
