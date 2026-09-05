@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import stat
+import tempfile
 import unicodedata
 
 
@@ -20,6 +22,23 @@ _TABLE_ENTITIES = {
     ")": "&#41;",
     "`": "&#96;",
 }
+
+
+def write_text_atomic(path: Path, text: str) -> None:
+    """Replace ``path`` only after the complete UTF-8 text reaches disk."""
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent
+    )
+    temporary_path = Path(temporary)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary_path, path)
+    except BaseException:
+        temporary_path.unlink(missing_ok=True)
+        raise
 
 
 def display_text(value: object, *, limit: int | None = None) -> str:

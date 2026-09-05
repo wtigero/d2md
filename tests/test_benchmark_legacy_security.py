@@ -11,6 +11,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 import bench.gaps as legacy_gaps
+import bench.legacy_safe as legacy_safe
 import bench.matrix as benchmark_matrix
 import bench.report as legacy_report
 import bench.run as legacy_run
@@ -21,6 +22,75 @@ import bench.vlm as legacy_vlm
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+
+
+def test_legacy_result_writer_preserves_exact_utf8_bytes(tmp_path):
+    destination = tmp_path / "result.json"
+    expected = tmp_path / "expected.json"
+    serialized = '{"text":"ไทย","value":NaN}'
+    expected.write_text(serialized, encoding="utf-8")
+
+    legacy_safe.write_text_atomic(destination, serialized)
+
+    assert destination.read_bytes() == expected.read_bytes()
+
+
+def test_legacy_result_writer_replaces_symlink_without_touching_target(tmp_path):
+    target = tmp_path / "outside.json"
+    target.write_text("outside", encoding="utf-8")
+    destination = tmp_path / "result.json"
+    try:
+        destination.symlink_to(target)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"symbolic links are unavailable: {error}")
+
+    legacy_safe.write_text_atomic(destination, "ไทย")
+
+    assert target.read_text(encoding="utf-8") == "outside"
+    assert not destination.is_symlink()
+    assert destination.read_bytes() == "ไทย".encode("utf-8")
+
+
+def test_legacy_result_writer_cleans_temporary_file_when_replace_fails(
+    tmp_path, monkeypatch
+):
+    destination = tmp_path / "result.json"
+    destination.write_text("previous", encoding="utf-8")
+
+    def fail_replace(_source, _destination):
+        raise OSError("replace failed")
+
+    monkeypatch.setattr(legacy_safe.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace failed"):
+        legacy_safe.write_text_atomic(destination, "replacement")
+
+    assert destination.read_text(encoding="utf-8") == "previous"
+    assert list(tmp_path.iterdir()) == [destination]
+
+
+def _prepare_result_symlink(corpus: Path, filename: str, tmp_path: Path):
+    target = tmp_path / f"outside-{filename}"
+    target.write_text("outside", encoding="utf-8")
+    destination = corpus / filename
+    try:
+        destination.symlink_to(target)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"symbolic links are unavailable: {error}")
+    return destination, target
+
+
+def _assert_secure_result(destination: Path, target: Path) -> str:
+    assert target.read_text(encoding="utf-8") == "outside"
+    assert not destination.is_symlink()
+    serialized = destination.read_text(encoding="utf-8")
+    reference = target.parent / "reference-result.json"
+    reference.write_text(
+        json.dumps(json.loads(serialized), indent=2), encoding="utf-8"
+    )
+    assert destination.read_bytes() == reference.read_bytes()
+    assert not list(destination.parent.glob(f".{destination.name}.*.tmp"))
+    return serialized
 
 
 def _write_result(
@@ -162,6 +232,9 @@ def test_legacy_run_escapes_corpus_stem_and_truncated_exception(
         raise RuntimeError("x" * 29 + "\x1b[31m")
 
     monkeypatch.setattr(legacy_run, "make_runner", lambda _name: fail)
+    destination, target = _prepare_result_symlink(
+        corpus, "results-pypdfium2.json", tmp_path
+    )
 
     assert legacy_run.main(
         [str(legacy_run.__file__), str(corpus), "pypdfium2", "--told"]
@@ -170,6 +243,9 @@ def test_legacy_run_escapes_corpus_stem_and_truncated_exception(
     output = capsys.readouterr().out
     _assert_visible_escapes(output)
     assert "x" * 29 + "\\x1b" in output
+    assert json.loads(_assert_secure_result(destination, target))["engine"] == (
+        "pypdfium2"
+    )
 
 
 def test_legacy_gaps_escapes_corpus_stem_and_exception(
@@ -226,12 +302,18 @@ def test_legacy_shipped_escapes_corpus_stem_and_exception(
     monkeypatch.setitem(
         sys.modules, "pypdfium2", SimpleNamespace(PdfDocument=fail)
     )
+    destination, target = _prepare_result_symlink(
+        corpus, "results-shipped-test-engine.json", tmp_path
+    )
 
     assert legacy_shipped.main(
         [str(legacy_shipped.__file__), str(corpus), "test-engine"]
     ) == 0
 
     _assert_visible_escapes(capsys.readouterr().out)
+    assert json.loads(_assert_secure_result(destination, target))["engine"] == (
+        "shipped-test-engine"
+    )
 
 
 def test_legacy_surya_escapes_corpus_stem_and_exception(
@@ -251,12 +333,18 @@ def test_legacy_surya_escapes_corpus_stem_and_exception(
     monkeypatch.setitem(
         sys.modules, "pypdfium2", SimpleNamespace(PdfDocument=fail)
     )
+    destination, target = _prepare_result_symlink(
+        corpus, "results-surya.json", tmp_path
+    )
 
     assert legacy_surya.main(
         [str(legacy_surya.__file__), str(corpus), "th"]
     ) == 0
 
     _assert_visible_escapes(capsys.readouterr().out)
+    assert json.loads(_assert_secure_result(destination, target))["engine"] == (
+        "surya"
+    )
 
 
 def test_legacy_vlm_escapes_spec_name_and_converter_exception(
@@ -294,7 +382,9 @@ def test_legacy_vlm_escapes_conversion_exception(tmp_path, monkeypatch, capsys):
     _assert_visible_escapes(capsys.readouterr().out)
 
 
-def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
+def test_legacy_vlm_escapes_result_destination_without_opening_control_filename(
+    tmp_path, monkeypatch, capsys
+):
     corpus = _write_runner_corpus(tmp_path, "en-clean")
     hostile_spec = "ไทย\x1b[31m\x7f\x85\u202e"
     converted = SimpleNamespace(
@@ -307,11 +397,10 @@ def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
     )
     writes = []
 
-    def capture_result(path, text, *, encoding=None):
-        writes.append((path, text, encoding))
-        return len(text)
+    def capture_result(path, text):
+        writes.append((path, text))
 
-    monkeypatch.setattr(Path, "write_text", capture_result)
+    monkeypatch.setattr(legacy_vlm, "write_text_atomic", capture_result)
 
     assert legacy_vlm.main(
         [str(legacy_vlm.__file__), str(corpus), hostile_spec]
@@ -322,10 +411,33 @@ def test_legacy_vlm_escapes_result_destination(tmp_path, monkeypatch, capsys):
     assert "built in" in output
     assert "→" in output
     assert len(writes) == 1
-    destination, serialized, encoding = writes[0]
+    destination, serialized = writes[0]
     assert destination == corpus / f"results-vlm-{hostile_spec}.json"
     assert json.loads(serialized)["engine"] == hostile_spec
-    assert encoding == "utf-8"
+
+
+def test_legacy_vlm_atomic_writer_replaces_symlink_without_touching_target(
+    tmp_path, monkeypatch
+):
+    corpus = _write_runner_corpus(tmp_path, "en-clean")
+    converted = SimpleNamespace(
+        document=SimpleNamespace(export_to_markdown=lambda: "ไทย")
+    )
+    monkeypatch.setattr(
+        legacy_vlm,
+        "converter",
+        lambda _spec: SimpleNamespace(convert=lambda _path: converted),
+    )
+    destination, target = _prepare_result_symlink(
+        corpus, "results-vlm-SAFE_SPEC.json", tmp_path
+    )
+
+    assert legacy_vlm.main(
+        [str(legacy_vlm.__file__), str(corpus), "SAFE_SPEC"]
+    ) == 0
+
+    serialized = _assert_secure_result(destination, target)
+    assert json.loads(serialized)["engine"] == "SAFE_SPEC"
 
 
 @pytest.mark.parametrize("module", (legacy_report, legacy_support))
