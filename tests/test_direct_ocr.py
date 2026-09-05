@@ -79,7 +79,7 @@ def test_image_returns_text_and_actual_engine(tmp_path, monkeypatch):
     assert calls == [("RGB", "latin", ["vision"])]
 
 
-def test_pdf_preserves_page_order(fake_pdfium, tmp_path, monkeypatch):
+def test_pdf_marks_pages_in_source_order(fake_pdfium, tmp_path, monkeypatch):
     source = tmp_path / "scan.pdf"
     source.write_bytes(b"fake")
     texts = iter(("first page text", "second page text"))
@@ -90,12 +90,46 @@ def test_pdf_preserves_page_order(fake_pdfium, tmp_path, monkeypatch):
     )
 
     assert convert_with_ocr(source, "latin", LIMITS) == (
-        "first page text\n\nsecond page text\n",
+        "<!-- Page number: 1 -->\n\nfirst page text\n\n"
+        "<!-- Page number: 2 -->\n\nsecond page text\n",
         "rapidocr",
     )
     assert fake_pdfium.count("page") == 2
     assert fake_pdfium.count("bitmap") == 2
     assert fake_pdfium.count("document") == 1
+
+
+def test_pdf_keeps_the_marker_for_a_blank_page(
+    fake_pdfium, tmp_path, monkeypatch
+):
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"fake")
+    texts = iter(("first page text", "  "))
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda script: "rapidocr")
+    monkeypatch.setattr(
+        "d2md.direct_ocr.read",
+        lambda image, script, engines: Reading(script, next(texts), 1.0),
+    )
+
+    assert convert_with_ocr(source, "latin", LIMITS) == (
+        "<!-- Page number: 1 -->\n\nfirst page text\n\n"
+        "<!-- Page number: 2 -->\n",
+        "rapidocr",
+    )
+
+
+def test_pdf_with_no_recognized_text_stays_empty(
+    fake_pdfium, tmp_path, monkeypatch
+):
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"fake")
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda script: "rapidocr")
+    monkeypatch.setattr(
+        "d2md.direct_ocr.read",
+        lambda image, script, engines: Reading(script, "  ", 1.0),
+    )
+
+    assert convert_with_ocr(source, "latin", LIMITS) == ("", "rapidocr")
 
 
 def test_pdf_enforces_page_limit(fake_pdfium, tmp_path, monkeypatch):

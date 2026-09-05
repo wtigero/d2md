@@ -119,23 +119,26 @@ def test_explicit_fast_values_are_deprecated_noops(tmp_path):
 # --- end to end ------------------------------------------------------------
 
 
-def test_born_digital_pdf_uses_the_default_text_path(tmp_path):
+def test_born_digital_pdf_marks_pages_in_source_order(multi_page_text_pdf):
     """A text-layer PDF must convert without Docling. If this test ever
     starts taking 30s, the fallback fired and Docling loaded its models."""
-    reportlab = pytest.importorskip("reportlab")
-    del reportlab
-    from reportlab.pdfgen import canvas
+    result = convert(multi_page_text_pdf)
 
-    src = tmp_path / "born-digital.pdf"
-    c = canvas.Canvas(str(src))
-    for page in range(3):
-        c.drawString(72, 720, f"Page {page + 1} of the specification document.")
-        c.drawString(72, 700, FULL)
-        c.drawString(72, 680, FULL)
-        c.showPage()
-    c.save()
-
-    result = convert(src)
     assert result.backend == "pypdfium2"
-    assert "Page 2 of the specification document." in result.markdown
+    assert result.markdown.count("<!-- Page number:") == 3
+    assert result.markdown.index("<!-- Page number: 1 -->") < result.markdown.index(
+        "Page 1 of the specification document."
+    )
+    assert result.markdown.index("Page 1 of the specification document.") < (
+        result.markdown.index("<!-- Page number: 2 -->")
+    )
+    assert result.markdown.index("<!-- Page number: 2 -->") < result.markdown.index(
+        "Page 2 of the specification document."
+    )
+    assert result.markdown.index("Page 2 of the specification document.") < (
+        result.markdown.index("<!-- Page number: 3 -->")
+    )
+    assert result.markdown.index("<!-- Page number: 3 -->") < result.markdown.index(
+        "Page 3 of the specification document."
+    )
     assert "\r" not in result.markdown

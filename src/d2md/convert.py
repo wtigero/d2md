@@ -26,6 +26,12 @@ from .capabilities import (
 from .direct_ocr import OCR_RENDER_SCALE, convert_with_ocr
 from .encoding import read_text, thai_looks_damaged
 from .errors import ConversionError
+from .page_markers import (
+    DOCLING_PAGE_BREAK,
+    format_pdf_content_span,
+    format_pdf_pages,
+    pdf_content,
+)
 
 # markitdown wins here: it keeps sheet names, slide numbers and image alt text,
 # and it is roughly an order of magnitude faster than a layout model.
@@ -918,6 +924,77 @@ def _docling(
     return _converters[key]
 
 
+def _docling_pdf_pages(document: object) -> list[str]:
+    from docling_core.transforms.serializer.markdown import (
+        MarkdownDocSerializer,
+        MarkdownParams,
+    )
+
+    page_sections = [[] for _ in range(max(document.pages, default=0))]
+    serializer = MarkdownDocSerializer(
+        doc=document,
+        params=MarkdownParams(page_break_placeholder=DOCLING_PAGE_BREAK),
+    )
+
+    def section_text(text: str, page_numbers: list[int]) -> str:
+        if len(page_numbers) > 1:
+            return f"{format_pdf_content_span(page_numbers)}\n\n{text}"
+        return text
+
+    for part in serializer.get_parts():
+        page_numbers = list(
+            dict.fromkeys(
+                provenance.page_no
+                for span in part.spans
+                for provenance in span.item.prov
+            )
+        )
+        if not page_numbers:
+            continue
+
+        page_number = page_numbers[0]
+        page_breaks = list(serializer._get_page_breaks(part.text))
+        if not page_breaks:
+            page_sections[page_number - 1].append(
+                section_text(part.text, page_numbers)
+            )
+            continue
+
+        start = 0
+        segments = []
+        for page_break, previous_page, next_page in page_breaks:
+            end = part.text.index(page_break, start)
+            segment_pages = [
+                page
+                for page in page_numbers
+                if previous_page <= page < next_page
+            ]
+            segments.append((previous_page, part.text[start:end], segment_pages))
+            page_number = next_page
+            start = end + len(page_break)
+        segment_pages = [page for page in page_numbers if page >= page_number]
+        segments.append((page_number, part.text[start:], segment_pages))
+
+        if all(
+            text.strip() and page_number in segment_pages
+            for page_number, text, segment_pages in segments
+        ):
+            for page_number, text, segment_pages in segments:
+                page_sections[page_number - 1].append(
+                    section_text(text, segment_pages)
+                )
+            continue
+
+        text = part.text
+        for page_break, _, _ in page_breaks:
+            text = text.replace(page_break, "")
+        page_sections[page_numbers[0] - 1].append(
+            section_text(text, page_numbers)
+        )
+
+    return ["\n\n".join(section) for section in page_sections]
+
+
 def _via_docling(
     path: Path,
     script: str | None = None,
@@ -932,16 +1009,15 @@ def _via_docling(
     from docling.exceptions import AcceleratorDeviceNotAvailableError
 
     try:
-        return (
-            _docling(
-                script,
-                force_ocr,
-                device=device,
-                ocr_enabled=ocr_enabled,
-            )
-            .convert(str(path))
-            .document.export_to_markdown()
-        )
+        document = _docling(
+            script,
+            force_ocr,
+            device=device,
+            ocr_enabled=ocr_enabled,
+        ).convert(str(path)).document
+        if path.suffix.lower() == ".pdf":
+            return format_pdf_pages(_docling_pdf_pages(document))
+        return document.export_to_markdown()
     except AcceleratorDeviceNotAvailableError as exc:
         raise ConversionError(str(exc)) from exc
 
@@ -1270,7 +1346,7 @@ def _convert_snapshot(
         except Exception:
             pages = []
         if _fast_text_is_trustworthy(pages):
-            return "\n\n".join(pages).strip() + "\n", backend
+            return format_pdf_pages(pages), backend
         if not ocr:
             raise ConversionError(
                 f"{source_path.name} needs OCR; run "
@@ -1365,10 +1441,12 @@ def convert(
             raise restored from error
 
     _check_limit(len(markdown), active_limits.max_output_chars, "output", name)
-    if len(markdown.strip()) < MIN_CHARS:
+    content = pdf_content(markdown) if path.suffix.lower() == ".pdf" else markdown
+    content_chars = len(content.strip())
+    if content_chars < MIN_CHARS:
         raise ConversionError(
             f"{backend} produced no usable text "
-            f"({len(markdown.strip())} chars) — the file is probably a scan "
+            f"({content_chars} chars) — the file is probably a scan "
             f"the backend cannot read, or is corrupt"
         )
     return Result(markdown=markdown, backend=backend)

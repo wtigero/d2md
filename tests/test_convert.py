@@ -15,6 +15,7 @@ from d2md.convert import (
     backend_for,
     convert,
 )
+from d2md.page_markers import format_pdf_content_span, pdf_content
 
 
 convert_module = importlib.import_module("d2md.convert")
@@ -217,6 +218,414 @@ def test_via_docling_translates_late_device_rejection(monkeypatch, tmp_path):
         convert_module._via_docling(tmp_path / "document.unknown", device="cuda")
 
     assert raised.value.__cause__ is unavailable
+
+
+def _docling_pdf_document(pages, content, nested_page=None):
+    pytest.importorskip("docling_core")
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin, Size
+    from docling_core.types.doc.document import (
+        DoclingDocument,
+        PageItem,
+        ProvenanceItem,
+    )
+    from docling_core.types.doc.labels import DocItemLabel, GroupLabel
+
+    bbox = BoundingBox(l=0, t=1, r=1, b=0, coord_origin=CoordOrigin.BOTTOMLEFT)
+    document = DoclingDocument(name="pages")
+    for page_number in pages:
+        document.pages[page_number] = PageItem(
+            page_no=page_number,
+            size=Size(width=1, height=1),
+        )
+    group = document.add_group(label=GroupLabel.SECTION) if nested_page else None
+    for page_number, text in content.items():
+        document.add_text(
+            label=DocItemLabel.TEXT,
+            text=text,
+            parent=group if page_number == nested_page else None,
+            prov=ProvenanceItem(
+                page_no=page_number,
+                bbox=bbox,
+                charspan=(0, len(text)),
+            ),
+        )
+    return document
+
+
+def _forbid_docling_export(monkeypatch, document):
+    seen = []
+
+    def unexpected_export(*args, **kwargs):
+        seen.append((args, kwargs))
+        raise AssertionError("PDF conversion must not export once per page")
+
+    monkeypatch.setattr(
+        type(document), "export_to_markdown", unexpected_export
+    )
+    return seen
+
+
+@pytest.mark.parametrize(
+    ("pages", "content", "expected"),
+    [
+        pytest.param(
+            (1, 2),
+            {
+                1: "First page content",
+                2: "    indented second-page content",
+            },
+            "<!-- Page number: 1 -->\n\nFirst page content\n\n"
+            "<!-- Page number: 2 -->\n\n    indented second-page content\n",
+            id="consecutive-populated-pages",
+        ),
+        pytest.param(
+            (1, 2, 3),
+            {1: "First page content", 3: "Third page content"},
+            "<!-- Page number: 1 -->\n\nFirst page content\n\n"
+            "<!-- Page number: 2 -->\n\n"
+            "<!-- Page number: 3 -->\n\nThird page content\n",
+            id="blank-middle-page",
+        ),
+        pytest.param(
+            (1, 2),
+            {2: "Second page content"},
+            "<!-- Page number: 1 -->\n\n"
+            "<!-- Page number: 2 -->\n\nSecond page content\n",
+            id="leading-blank-page",
+        ),
+    ],
+)
+def test_via_docling_marks_pdf_pages_in_source_order(
+    monkeypatch, tmp_path, pages, content, expected
+):
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document(pages, content)
+    seen = _forbid_docling_export(monkeypatch, document)
+
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown == expected
+    assert seen == []
+
+
+def test_via_docling_keeps_nested_group_on_its_provenance_page(
+    monkeypatch, tmp_path
+):
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document(
+        (1, 2, 3),
+        {1: "First page content", 3: "Nested third-page content"},
+        nested_page=3,
+    )
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown == (
+        "<!-- Page number: 1 -->\n\nFirst page content\n\n"
+        "<!-- Page number: 2 -->\n\n"
+        "<!-- Page number: 3 -->\n\nNested third-page content\n"
+    )
+
+
+def test_via_docling_marks_unsplittable_multi_page_text(monkeypatch, tmp_path):
+    pytest.importorskip("docling_core")
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin
+    from docling_core.types.doc.document import ProvenanceItem
+    from docling_core.types.doc.labels import DocItemLabel
+
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document((1, 2), {})
+    bbox = BoundingBox(l=0, t=1, r=1, b=0, coord_origin=CoordOrigin.BOTTOMLEFT)
+    text = "First-page text Second-page text"
+    item = document.add_text(
+        label=DocItemLabel.TEXT,
+        text=text,
+        prov=ProvenanceItem(page_no=1, bbox=bbox, charspan=(0, 16)),
+    )
+    item.prov.append(
+        ProvenanceItem(page_no=2, bbox=bbox, charspan=(16, len(text)))
+    )
+    seen = _forbid_docling_export(monkeypatch, document)
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown.count(text) == 1
+    assert "<!-- Content spans pages: 1-2 -->" in markdown
+    assert "<!-- Page number: 1 -->" in markdown
+    assert "<!-- Page number: 2 -->" in markdown
+    assert (
+        markdown.index("<!-- Page number: 1 -->")
+        < markdown.index("<!-- Content spans pages: 1-2 -->")
+        < markdown.index(text)
+        < markdown.index("<!-- Page number: 2 -->")
+    )
+    assert seen == []
+
+
+def test_via_docling_marks_unsplittable_multi_page_table(monkeypatch, tmp_path):
+    pytest.importorskip("docling_core")
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin
+    from docling_core.types.doc.document import (
+        ProvenanceItem,
+        TableCell,
+        TableData,
+    )
+
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document((1, 2), {})
+    bbox = BoundingBox(l=0, t=1, r=1, b=0, coord_origin=CoordOrigin.BOTTOMLEFT)
+    data = TableData(
+        num_rows=2,
+        num_cols=1,
+        table_cells=[
+            TableCell(
+                text="Header",
+                start_row_offset_idx=0,
+                end_row_offset_idx=1,
+                start_col_offset_idx=0,
+                end_col_offset_idx=1,
+                bbox=bbox,
+            ),
+            TableCell(
+                text="Value",
+                start_row_offset_idx=1,
+                end_row_offset_idx=2,
+                start_col_offset_idx=0,
+                end_col_offset_idx=1,
+                bbox=bbox,
+            ),
+        ],
+    )
+    table = document.add_table(
+        data=data,
+        prov=ProvenanceItem(page_no=1, bbox=bbox, charspan=(0, 0)),
+    )
+    table.prov.append(
+        ProvenanceItem(page_no=2, bbox=bbox, charspan=(0, 0))
+    )
+    seen = _forbid_docling_export(monkeypatch, document)
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown.count("Header") == 1
+    assert markdown.count("Value") == 1
+    assert "<!-- Content spans pages: 1-2 -->" in markdown
+    assert "<!-- Page number: 1 -->" in markdown
+    assert "<!-- Page number: 2 -->" in markdown
+    assert (
+        markdown.index("<!-- Page number: 1 -->")
+        < markdown.index("<!-- Content spans pages: 1-2 -->")
+        < markdown.index("Header")
+        < markdown.index("<!-- Page number: 2 -->")
+    )
+    assert not hasattr(data.table_cells[0], "page_no")
+    assert not hasattr(data.table_cells[0], "prov")
+    assert seen == []
+
+
+def test_via_docling_marks_atomic_segment_before_later_page_break(
+    monkeypatch, tmp_path
+):
+    pytest.importorskip("docling_core")
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin
+    from docling_core.types.doc.document import ProvenanceItem
+    from docling_core.types.doc.labels import DocItemLabel, GroupLabel
+
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document((1, 2, 3), {})
+    bbox = BoundingBox(l=0, t=1, r=1, b=0, coord_origin=CoordOrigin.BOTTOMLEFT)
+    group = document.add_group(label=GroupLabel.SECTION)
+    text = "Atomic page one and two"
+    item = document.add_text(
+        label=DocItemLabel.TEXT,
+        text=text,
+        parent=group,
+        prov=ProvenanceItem(page_no=1, bbox=bbox, charspan=(0, 11)),
+    )
+    item.prov.append(
+        ProvenanceItem(page_no=2, bbox=bbox, charspan=(11, len(text)))
+    )
+    document.add_text(
+        label=DocItemLabel.TEXT,
+        text="Page three content",
+        parent=group,
+        prov=ProvenanceItem(page_no=3, bbox=bbox, charspan=(0, 18)),
+    )
+    seen = _forbid_docling_export(monkeypatch, document)
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown == (
+        "<!-- Page number: 1 -->\n\n"
+        "<!-- Content spans pages: 1-2 -->\n\n"
+        "Atomic page one and two\n\n"
+        "<!-- Page number: 2 -->\n\n"
+        "<!-- Page number: 3 -->\n\nPage three content\n"
+    )
+    assert markdown.count(text) == 1
+    assert seen == []
+
+
+def test_via_docling_falls_back_for_nested_group_trailing_break(
+    monkeypatch, tmp_path
+):
+    pytest.importorskip("docling_core")
+    from docling_core.types.doc.base import BoundingBox, CoordOrigin
+    from docling_core.types.doc.document import ProvenanceItem
+    from docling_core.types.doc.labels import DocItemLabel, GroupLabel
+
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+    document = _docling_pdf_document((1, 2, 3), {})
+    bbox = BoundingBox(l=0, t=1, r=1, b=0, coord_origin=CoordOrigin.BOTTOMLEFT)
+    outer = document.add_group(label=GroupLabel.SECTION)
+    document.add_text(
+        label=DocItemLabel.TEXT,
+        text="Page one content",
+        parent=outer,
+        prov=ProvenanceItem(page_no=1, bbox=bbox, charspan=(0, 16)),
+    )
+    nested = document.add_group(label=GroupLabel.SECTION, parent=outer)
+    document.add_text(
+        label=DocItemLabel.TEXT,
+        text="Nested page three content",
+        parent=nested,
+        prov=ProvenanceItem(page_no=3, bbox=bbox, charspan=(0, 25)),
+    )
+    seen = _forbid_docling_export(monkeypatch, document)
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=document)
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    markdown = convert_module._via_docling(tmp_path / "report.pdf")
+
+    assert markdown.count("Page one content") == 1
+    assert markdown.count("Nested page three content") == 1
+    assert "<!-- Content spans pages: 1,3 -->" in markdown
+    assert convert_module.DOCLING_PAGE_BREAK not in markdown
+    assert "#_#_DOCLING_DOC_PAGE_BREAK_" not in markdown
+    assert markdown.count("<!-- Page number:") == 3
+    assert (
+        markdown.index("<!-- Page number: 1 -->")
+        < markdown.index("<!-- Content spans pages: 1,3 -->")
+        < markdown.index("Page one content")
+        < markdown.index("Nested page three content")
+        < markdown.index("<!-- Page number: 2 -->")
+        < markdown.index("<!-- Page number: 3 -->")
+    )
+    assert seen == []
+
+
+def test_pdf_content_ignores_page_metadata():
+    markdown = (
+        "<!-- Page number: 1 -->\n\n"
+        "<!-- Content spans pages: 1-2 -->\n"
+    )
+
+    assert not pdf_content(markdown).strip()
+    assert format_pdf_content_span([1, 3]) == "<!-- Content spans pages: 1,3 -->"
+
+
+def test_via_docling_keeps_image_markdown_unchanged(monkeypatch, tmp_path):
+    class AcceleratorDeviceNotAvailableError(RuntimeError):
+        pass
+
+    exceptions = ModuleType("docling.exceptions")
+    exceptions.AcceleratorDeviceNotAvailableError = (
+        AcceleratorDeviceNotAvailableError
+    )
+    monkeypatch.setitem(sys.modules, "docling.exceptions", exceptions)
+
+    class Document:
+        def export_to_markdown(self):
+            return "Image description"
+
+    converter = SimpleNamespace(
+        convert=lambda path: SimpleNamespace(document=Document())
+    )
+    monkeypatch.setattr(
+        convert_module, "_docling", lambda *args, **kwargs: converter
+    )
+
+    assert (
+        convert_module._via_docling(tmp_path / "scan.png")
+        == "Image description"
+    )
 
 
 def test_via_docling_reraises_unrelated_runtime_error(monkeypatch, tmp_path):

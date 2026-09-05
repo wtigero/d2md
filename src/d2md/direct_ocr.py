@@ -6,6 +6,7 @@ from typing import Protocol
 
 from .errors import ConversionError
 from .ocr import engine_for, read
+from .page_markers import format_pdf_pages
 
 
 OCR_RENDER_SCALE = 2.0
@@ -108,7 +109,10 @@ def convert_with_ocr(
         texts.append(text)
         _check(len(text), limits.max_output_chars, "output", path)
 
-    markdown = "\n\n".join(text.strip() for text in texts if text.strip()).strip()
-    output = markdown + "\n" if markdown else ""
+    if path.suffix.lower() == ".pdf":
+        output = format_pdf_pages(texts)
+    else:
+        markdown = "\n\n".join(text.strip() for text in texts if text.strip()).strip()
+        output = markdown + "\n" if markdown else ""
     _check(len(output), limits.max_output_chars, "output", path)
     return output, ENGINE_BACKENDS[engine]
