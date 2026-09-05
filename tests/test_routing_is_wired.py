@@ -150,6 +150,32 @@ def test_scan_with_ocr_uses_direct_engine(tmp_path, monkeypatch):
     assert convert(source, ocr=True).backend == "rapidocr"
 
 
+def test_pdf_markers_do_not_make_short_ocr_output_usable(
+    tmp_path, monkeypatch
+):
+    source = tmp_path / "scan.pdf"
+    source.write_bytes(b"fake")
+    monkeypatch.setattr(convert_module, "ensure_ocr_available", lambda: None)
+    monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
+    monkeypatch.setattr(
+        convert_module, "_via_pypdfium2", lambda *args, **kwargs: [""]
+    )
+    monkeypatch.setattr(
+        convert_module, "script_of", lambda *args, **kwargs: "latin"
+    )
+    monkeypatch.setattr(
+        convert_module,
+        "convert_with_ocr",
+        lambda path, script, limits: (
+            "<!-- Page number: 1 -->\n\nx\n",
+            "rapidocr",
+        ),
+    )
+
+    with pytest.raises(ConversionError, match=r"no usable text \(1 chars\)"):
+        convert(source, ocr=True)
+
+
 @pytest.mark.parametrize("ocr,script", [(False, None), (True, "thai")])
 def test_docling_receives_explicit_ocr_state(
     tmp_path, monkeypatch, ocr, script

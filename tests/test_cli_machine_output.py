@@ -45,6 +45,22 @@ def test_stdout_emits_only_markdown_and_does_not_create_output(
     assert not (tmp_path / "md-out").exists()
 
 
+def test_stdout_preserves_pdf_page_markers(
+    multi_page_text_pdf, tmp_path, monkeypatch, capsys
+):
+    monkeypatch.chdir(tmp_path)
+
+    assert cli.main([str(multi_page_text_pdf), "--stdout"]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert captured.out.count("<!-- Page number:") == 3
+    assert "<!-- Page number: 1 -->" in captured.out
+    assert "<!-- Page number: 2 -->" in captured.out
+    assert "<!-- Page number: 3 -->" in captured.out
+    assert not (tmp_path / "md-out").exists()
+
+
 def test_stdout_redirects_backend_noise_away_from_markdown(
     tmp_path, monkeypatch, capsys
 ):
@@ -175,6 +191,23 @@ def test_json_success_is_one_machine_readable_document(
     assert isinstance(result["seconds"], float)
     assert result["seconds"] >= 0
     assert (outdir / "report.md").read_text(encoding="utf-8") == MARKDOWN
+
+
+def test_file_and_json_report_preserve_pdf_page_markers(
+    multi_page_text_pdf, tmp_path, capsys
+):
+    outdir = tmp_path / "converted"
+
+    assert cli.main(
+        [str(multi_page_text_pdf), "--json", "-o", str(outdir)]
+    ) == 0
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    markdown = (outdir / "multi-page.md").read_text(encoding="utf-8")
+    assert captured.err == ""
+    assert markdown.count("<!-- Page number:") == 3
+    assert payload["results"][0]["characters"] == len(markdown)
 
 
 def test_json_redirects_backend_noise_away_from_report(

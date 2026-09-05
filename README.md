@@ -8,6 +8,7 @@ installed and explicitly requested.
 
 - Convert one file or a whole directory tree.
 - Read normal PDFs without loading an ML stack.
+- Preserve PDF page boundaries with numbered Markdown comments.
 - OCR scanned PDFs and images only with `--ocr`.
 - Use Docling for layout, reading order, headings, and tables only with
   `--docling`.
@@ -114,6 +115,37 @@ d2md report.pdf --docling --stdout | your-ai-command
 prints no progress text into the stream. Errors go to standard error and the
 command exits non-zero. Because it does not write files, it cannot be combined
 with `-o`, `--outdir`, or `--force`.
+
+### PDF page boundaries
+
+Every emitted PDF page starts with a non-rendering marker that follows the
+same convention as the existing PowerPoint slide markers:
+
+```markdown
+<!-- Page number: 1 -->
+
+# Quarterly report
+
+First-page content.
+
+<!-- Page number: 2 -->
+
+Second-page content.
+```
+
+The default text path, direct `--ocr`, and `--docling` PDF routes all emit this
+shape. Page order is unchanged, while RAG loaders and other consumers can split
+on `<!-- Page number: N -->` without showing extra headings in rendered
+Markdown. The markers are part of the Markdown written to files and `--stdout`;
+in `--json` mode, the JSON report still describes the generated Markdown file
+rather than embedding its contents.
+
+Docling can represent one rendered text or table part with provenance from more
+than one physical page but without row- or character-level Markdown offsets. In
+that case d2md keeps the part intact on its first provenance page and prefixes
+it with `<!-- Content spans pages: 1-2 -->` (or `1,3` for non-contiguous pages).
+Later physical page markers are still emitted; the comment is machine metadata,
+not a claim that the part was split exactly at the page boundary.
 
 ### Get a JSON run report
 
