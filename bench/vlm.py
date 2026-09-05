@@ -25,7 +25,7 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 warnings.filterwarnings("ignore")
 
 sys.path.insert(0, str(Path(__file__).parent))
-from legacy_safe import display_text  # noqa: E402
+from legacy_safe import display_text, write_text_atomic  # noqa: E402
 from score import cer, cer_bag, grade  # noqa: E402
 
 SCRIPTS = ["en", "th", "ja", "zh", "ko", "hi", "vi", "de", "ru", "ar", "zt"]
@@ -107,9 +107,9 @@ def main(argv: list[str]) -> int:
                 )
 
         dst = corpus / f"results-vlm-{spec}.json"
-        dst.write_text(
+        write_text_atomic(
+            dst,
             json.dumps({"engine": spec, "warmup": warmup, "rows": rows}, indent=2),
-            encoding="utf-8",
         )
         print(f"\n  → {display_text(dst)}")
     return 0

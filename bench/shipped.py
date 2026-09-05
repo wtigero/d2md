@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from d2md.ocr import ENGINE_SCRIPTS, READERS  # noqa: E402
-from legacy_safe import display_text  # noqa: E402
+from legacy_safe import display_text, write_text_atomic  # noqa: E402
 from score import cer, cer_bag, grade  # noqa: E402
 
 #: Corpus filename prefix -> the script `d2md` would route it to.
@@ -94,9 +94,9 @@ def main(argv: list[str]) -> int:
             )
 
         dst = corpus / f"results-shipped-{engine}.json"
-        dst.write_text(
+        write_text_atomic(
+            dst,
             json.dumps({"engine": f"shipped-{engine}", "rows": rows}, indent=2),
-            encoding="utf-8",
         )
         print(f"\n  → {display_text(dst)}", flush=True)
     return 0
