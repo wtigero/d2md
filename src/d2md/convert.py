@@ -7,6 +7,7 @@ before it counts as a success.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from html import escape
 import os
 import stat
 import struct
@@ -1022,6 +1023,105 @@ def _via_docling(
         raise ConversionError(str(exc)) from exc
 
 
+def _xlsx_cell_text(cell) -> str:
+    if cell.data_type == "e" or cell.value is None:
+        return ""
+    text = str(cell.value)
+    return "" if not text.strip() else text.strip()
+
+
+def _xlsx_markdown(file_stream) -> str:
+    from openpyxl import load_workbook
+    from openpyxl.utils import get_column_letter
+
+    workbook = load_workbook(file_stream, data_only=True, read_only=False)
+    sections = []
+    try:
+        for sheet in workbook.worksheets:
+            nonempty = {
+                (cell.row, cell.column)
+                for row in sheet.iter_rows()
+                for cell in row
+                if _xlsx_cell_text(cell)
+            }
+            if not nonempty:
+                sections.append(f"## {sheet.title}")
+                continue
+
+            columns = sorted({column for _, column in nonempty})
+            last_row = max(row for row, _ in nonempty)
+            top_merges = [
+                merged for merged in sheet.merged_cells.ranges if merged.min_row == 1
+            ]
+            has_grouped_header = any(
+                merged.min_row == merged.max_row == 1
+                and merged.min_col < merged.max_col
+                for merged in top_merges
+            )
+            has_second_header_row = any(row == 2 for row, _ in nonempty)
+            header_rows = 2 if (
+                any(merged.max_row >= 2 for merged in top_merges)
+                or (has_grouped_header and has_second_header_row)
+            ) else 1
+
+            merged_anchors = {}
+            for merged in sheet.merged_cells.ranges:
+                anchor = sheet.cell(merged.min_row, merged.min_col)
+                for row in range(merged.min_row, min(merged.max_row, last_row) + 1):
+                    for column in columns:
+                        if merged.min_col <= column <= merged.max_col:
+                            merged_anchors[(row, column)] = anchor
+
+            headers = []
+            for column in columns:
+                parts = []
+                for row in range(1, header_rows + 1):
+                    cell = merged_anchors.get((row, column), sheet.cell(row, column))
+                    text = _xlsx_cell_text(cell)
+                    if text and text not in parts:
+                        parts.append(text)
+                headers.append(
+                    " / ".join(parts) or f"Column {get_column_letter(column)}"
+                )
+
+            rows = []
+            for row in range(header_rows + 1, last_row + 1):
+                if not any((row, column) in nonempty for column in columns):
+                    continue
+                rows.append(
+                    [
+                        _xlsx_cell_text(
+                            merged_anchors.get(
+                                (row, column), sheet.cell(row, column)
+                            )
+                        )
+                        for column in columns
+                    ]
+                )
+
+            def markdown_cell(value: str) -> str:
+                return (
+                    escape(value, quote=False)
+                    .replace("|", r"\|")
+                    .replace("\r\n", "<br>")
+                    .replace("\r", "<br>")
+                    .replace("\n", "<br>")
+                )
+
+            table = [
+                f"| {' | '.join(markdown_cell(value) for value in headers)} |",
+                f"| {' | '.join('---' for _ in headers)} |",
+            ]
+            table.extend(
+                f"| {' | '.join(markdown_cell(value) for value in row)} |"
+                for row in rows
+            )
+            sections.append(f"## {sheet.title}\n" + "\n".join(table))
+    finally:
+        workbook.close()
+    return "\n\n".join(sections)
+
+
 def _build_markitdown(validated_formats: frozenset[str]):
     """Build MarkItDown without its recursive generic-ZIP converter."""
     disable_onnx_telemetry()
@@ -1064,9 +1164,7 @@ def _build_markitdown(validated_formats: frozenset[str]):
 
     class SourcePreservingXlsxConverter(XlsxConverter):
         def convert(self, file_stream, stream_info, **kwargs):
-            return convert_spreadsheet(
-                file_stream, "openpyxl", self._html_converter, **kwargs
-            )
+            return DocumentConverterResult(markdown=_xlsx_markdown(file_stream))
 
     class SourcePreservingXlsConverter(XlsConverter):
         def convert(self, file_stream, stream_info, **kwargs):

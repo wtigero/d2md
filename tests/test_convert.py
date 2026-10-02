@@ -871,6 +871,101 @@ def test_spreadsheet_empty_cells_render_as_blank_table_cells(tmp_path, suffix):
     assert "Contains NaN text" in markdown
 
 
+def test_xlsx_preserves_booleans_when_the_column_contains_blanks(tmp_path):
+    from openpyxl import Workbook
+
+    source = tmp_path / "booleans.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Name", "Enabled"])
+    sheet.append(["Not specified", None])
+    sheet.append(["Disabled", False])
+    sheet.append(["Enabled", True])
+    workbook.save(source)
+
+    markdown = convert(source).markdown
+
+    assert "| Not specified |  |" in markdown
+    assert "| Disabled | False |" in markdown
+    assert "| Enabled | True |" in markdown
+    assert "0.0" not in markdown
+    assert "1.0" not in markdown
+
+
+def test_xlsx_combines_merged_two_row_headers_and_drops_only_empty_columns(
+    tmp_path,
+):
+    from openpyxl import Workbook
+    from openpyxl.styles import PatternFill
+
+    source = tmp_path / "headers.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Vertical"
+    sheet.merge_cells("A1:A2")
+    sheet["A1"] = "Field"
+    sheet.merge_cells("B1:C1")
+    sheet["B1"] = "Mandatory (*)"
+    sheet["B2"] = "Create"
+    sheet["C2"] = "Edit"
+    sheet.merge_cells("D1:D2")
+    sheet["D1"] = "Notes"
+    sheet.append(["Agent Code", "Y", "N", "Visible", "IC License only?"])
+    sheet["G1"].fill = PatternFill(fill_type="solid", fgColor="FFFF00")
+
+    grouped = workbook.create_sheet("Grouped")
+    grouped.merge_cells("C1:D1")
+    grouped["C1"] = "Agency Feedback"
+    grouped.append(["Filter", "Value", "CF", "Remark"])
+    grouped.append(["Policy Status", "In Force", "Y", "Default"])
+    workbook.save(source)
+
+    markdown = convert(source).markdown
+
+    assert (
+        "| Field | Mandatory (*) / Create | Mandatory (*) / Edit | Notes | Column E |"
+        in markdown
+    )
+    assert "| Agent Code | Y | N | Visible | IC License only? |" in markdown
+    assert (
+        "| Filter | Value | Agency Feedback / CF | Agency Feedback / Remark |"
+        in markdown
+    )
+    assert "| Policy Status | In Force | Y | Default |" in markdown
+    assert "Unnamed:" not in markdown
+    assert "Column F" not in markdown
+    assert "Column G" not in markdown
+    assert "| Create | Edit |" not in markdown
+
+
+def test_xlsx_repeats_only_merged_context_and_preserves_cell_line_breaks(tmp_path):
+    from openpyxl import Workbook
+
+    source = tmp_path / "merged.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Section", "Value", "Details", "One row only"])
+    sheet.merge_cells("A2:A4")
+    sheet["A2"] = "Policy Status"
+    sheet["B2"] = "In Force"
+    sheet["C2"] = "Line one\nLine two"
+    sheet["D2"] = "Do not repeat"
+    sheet["B3"] = "Lapsed"
+    sheet["C3"] = "SELECT\nFROM policies"
+    sheet["B4"] = "Expired"
+    workbook.save(source)
+
+    markdown = convert(source).markdown
+
+    assert (
+        "| Policy Status | In Force | Line one<br>Line two | Do not repeat |"
+        in markdown
+    )
+    assert "| Policy Status | Lapsed | SELECT<br>FROM policies |  |" in markdown
+    assert "| Policy Status | Expired |  |  |" in markdown
+    assert "\\n" not in markdown
+
+
 def test_legacy_thai_text_file_survives(tmp_path):
     src = tmp_path / "legacy.txt"
     body = "ทดสอบภาษาไทย น้ำจำกัด ระบบอ่านไฟล์ทดสอบ"
