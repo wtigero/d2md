@@ -12,6 +12,8 @@ No changes yet.
   merged ranges.
 - Preserve XLSX cell line breaks as `<br>` and omit empty columns while keeping
   notes in columns without headers.
+- Constrain the macOS Docling profile to Transformers versions that support
+  its MPS layout model.
 
 ## [0.1.2]
 
