@@ -6,6 +6,13 @@ All notable changes are recorded here.
 
 No changes yet.
 
+## [0.1.3]
+
+- Combine merged two-row XLSX headers and repeat section context only within
+  merged ranges.
+- Preserve XLSX cell line breaks as `<br>` and omit empty columns while keeping
+  notes in columns without headers.
+
 ## [0.1.2]
 
 - Add numbered `<!-- Page number: N -->` markers to PDF Markdown output for
