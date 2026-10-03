@@ -1,5 +1,8 @@
 import re
 from pathlib import Path
+
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10
@@ -66,7 +69,37 @@ def test_optional_groups_are_complete():
     ]
     assert set(extras["ocr"]).issubset(extras["docling"])
     assert "docling>=2.119,<3" in extras["docling"]
-    assert "transformers<5.15" in extras["docling"]
+
+
+@pytest.mark.parametrize(
+    "platform,supported,unsupported",
+    [
+        ("darwin", "5.8.1", "5.14.1"),
+        ("linux", "5.14.1", "5.15.0"),
+        ("win32", "5.14.1", "5.15.0"),
+    ],
+)
+def test_docling_transformers_constraint_matches_platform(
+    platform, supported, unsupported
+):
+    from packaging.requirements import Requirement
+
+    requirements = [
+        Requirement(text) for text in PROJECT["optional-dependencies"]["docling"]
+    ]
+    active = [
+        requirement
+        for requirement in requirements
+        if requirement.name == "transformers"
+        and (
+            requirement.marker is None
+            or requirement.marker.evaluate({"sys_platform": platform})
+        )
+    ]
+
+    assert len(active) == 1
+    assert supported in active[0].specifier
+    assert unsupported not in active[0].specifier
 
 
 def test_dev_dependencies_include_python_310_tomllib_backport():
