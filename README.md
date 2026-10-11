@@ -308,14 +308,14 @@ repeat its command with `--force`.
 
 ### Source and release verification
 
-For source installs or verifying the exact `v0.1.1` release tag, use:
+For source installs or verifying the exact `v0.1.3` release tag, use:
 
 ```bash
-uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.1.1"
+uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.1.3"
 ```
 
 Tags and public releases are promoted through the gates in
-[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/release-process.md).
+[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.1.3/docs/release-process.md).
 
 For repository development, create an isolated environment and install the
 test plus optional dependencies:
@@ -383,8 +383,9 @@ or any other capability.
 | `--version` | print the installed `d2md` version and exit |
 | `--unsafe-unlimited` | disable resource ceilings for trusted inputs only |
 
-The former `--fast` option is a hidden deprecated compatibility no-op for one
-release. Direct PDF text extraction is now the default.
+The former `--fast` option is still accepted as a hidden, deprecated no-op and
+will be removed in a future minor release. Direct PDF text extraction is now the
+default.
 
 If multiple inputs have the same basename, the first output is kept unless
 `--force` is used. The command exits non-zero if any input fails:
@@ -459,7 +460,7 @@ the platform-specific output safeguards above remain active.
 ## Manual verification
 
 Synthetic examples cover every accepted extension. See
-[examples/README.md](https://github.com/wtigero/d2md/blob/v0.1.1/examples/README.md) for the manifest and direct driver.
+[examples/README.md](https://github.com/wtigero/d2md/blob/v0.1.3/examples/README.md) for the manifest and direct driver.
 See the dated [manual verification results](https://github.com/wtigero/d2md/blob/v0.1.1/docs/verification.md) for the
 tested operating systems, profiles, devices, and fixture counts.
 
@@ -489,7 +490,7 @@ verify expected markers. No CI is required for these manual release checks.
 ## Controlled performance measurements
 
 The manual smoke checks above prove functionality; they are not speed claims.
-The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.1.1/bench/README.md) measures the current
+The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.1.3/bench/README.md) measures the current
 explicit routes by operating system, CPU/accelerator device, document type,
 method, and language. It records initialization separately from warm timing,
 quality and resource metrics, and promotes results only after all six required
@@ -551,8 +552,8 @@ detection can interpret CP874 as an unrelated encoding. `d2md` validates a
 CP874 candidate by its Thai character ratio before accepting it.
 
 The research that motivated these guards is preserved in
-[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/findings.md). OCR corpus methodology lives in
-[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.1.1/docs/ocr.md). Those research measurements are historical
+[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.1.3/docs/findings.md). OCR corpus methodology lives in
+[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.1.3/docs/ocr.md). Those research measurements are historical
 evidence, not performance claims for the current installation profiles.
 
 ## Limitations
