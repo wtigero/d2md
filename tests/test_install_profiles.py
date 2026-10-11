@@ -11,7 +11,9 @@ except ModuleNotFoundError:  # Python 3.10
 
 ROOT = Path(__file__).parents[1]
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.1/"
+RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.3/"
+# Dated evidence stays pinned to the release it was measured on.
+EVIDENCE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.1/"
 HISTORICAL_RESULTS = (
     "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
     "bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/macos-arm64-cpu.json",
@@ -49,7 +51,9 @@ def test_project_identity_is_d2md():
         "https://github.com/wtigero/d2md/security/policy",
     }
     assert (ROOT / "src" / "d2md").is_dir()
-    assert not (ROOT / "src" / "doc2md").exists()
+    # Ignored __pycache__ leftovers are not package source; only .py counts.
+    legacy_package = ROOT / "src" / "doc2md"
+    assert not legacy_package.is_dir() or not any(legacy_package.rglob("*.py"))
 
 
 def test_base_excludes_heavy_stacks():
@@ -141,7 +145,7 @@ def test_readme_documents_verified_gpu_installation():
     assert "torch and torchvision" in readme
     assert (
         "[manual verification results]("
-        f"{RELEASE_BLOB_URL}docs/verification.md)"
+        f"{EVIDENCE_BLOB_URL}docs/verification.md)"
     ) in readme
 
 
@@ -151,15 +155,17 @@ def test_readme_cross_file_links_are_absolute_release_urls():
 
     assert _relative_cross_file_links(readme) == []
     assert [target for target in targets if target.startswith(RELEASE_BLOB_URL)] == [
-        f"{RELEASE_BLOB_URL}bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
-        f"{RELEASE_BLOB_URL}docs/verification.md#hardware-and-relevant-packages",
         f"{RELEASE_BLOB_URL}docs/release-process.md",
         f"{RELEASE_BLOB_URL}examples/README.md",
-        f"{RELEASE_BLOB_URL}docs/verification.md",
         f"{RELEASE_BLOB_URL}bench/README.md",
-        f"{RELEASE_BLOB_URL}bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
         f"{RELEASE_BLOB_URL}docs/findings.md",
         f"{RELEASE_BLOB_URL}docs/ocr.md",
+    ]
+    assert [target for target in targets if target.startswith(EVIDENCE_BLOB_URL)] == [
+        f"{EVIDENCE_BLOB_URL}bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
+        f"{EVIDENCE_BLOB_URL}docs/verification.md#hardware-and-relevant-packages",
+        f"{EVIDENCE_BLOB_URL}docs/verification.md",
+        f"{EVIDENCE_BLOB_URL}bench/results/7203499e58bf8e6415b3190638d0f8a689f55924/README.md",
     ]
 
 
