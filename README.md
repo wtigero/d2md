@@ -402,9 +402,10 @@ d2md ./inbox -o ./markdown || echo "some documents need attention"
 | Supported files | 10,000 |
 | Discovered directory entries | 10,000 |
 | Retained collection failures | 10,000 |
-| PDF pages | 500 |
+| PDF or TIFF pages | 500 |
 | Rendered pixels per page | 40 million |
-| Rendered pixels per PDF | 400 million |
+| Rendered pixels per PDF or TIFF | 400 million |
+| MarkItDown worker memory (macOS and Linux) | 4 GiB |
 | Extracted/output characters, per file and per CLI run | 20 million |
 | ZIP-based document members | 10,000 |
 | ZIP-based expanded content | 500 MiB |
@@ -441,6 +442,12 @@ This is not a whole-host sandbox or a hard RAM/GPU boundary. Keep untrusted
 Office/Docling jobs within the input and archive limits above, split hostile
 files into small batches, and apply OS, container, or job-level time and memory
 controls when a hard boundary is required.
+
+The rendered-pixel ceilings apply only to routes that render. Default PDF text
+extraction reads the text layer, so it is bound by the page and character
+limits instead. The MarkItDown worker stops when its memory passes the ceiling.
+Windows has no such ceiling yet, and Docling workers are not limited because
+their models need far more memory than ordinary documents.
 
 The default MarkItDown and Docling backend job deadline is 30 minutes (1,800
 seconds). Only the explicit trusted-input `--unsafe-unlimited` mode makes that

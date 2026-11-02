@@ -7,8 +7,10 @@ lifecycle behavior exercised with an independent Python helper.
 
 import importlib
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+import json
 import os
 import signal
+import subprocess
 import sys
 import textwrap
 import threading
@@ -137,6 +139,11 @@ def test_backend_deadline_is_bounded_by_default_and_explicitly_unlimited():
     assert UNLIMITED_LIMITS.max_backend_seconds is None
 
 
+def test_backend_memory_is_bounded_by_default_and_explicitly_unlimited():
+    assert ConversionLimits().max_backend_memory_bytes == 4 * 1024**3
+    assert UNLIMITED_LIMITS.max_backend_memory_bytes is None
+
+
 def test_backend_deadline_does_not_shift_existing_positional_limit_fields():
     limits = ConversionLimits(1, 2, 3, 4, 5, 6, 7, 8)
 
@@ -161,7 +168,9 @@ def test_markitdown_route_sends_every_boundary_to_isolated_worker(
         return "isolated output with enough usable text"
 
     monkeypatch.setattr(convert_module, "_run_isolated_backend", fake_isolated)
-    limits = ConversionLimits(max_output_chars=123, max_backend_seconds=7)
+    limits = ConversionLimits(
+        max_output_chars=123, max_backend_seconds=7, max_backend_memory_bytes=11
+    )
 
     result = convert(source, limits=limits)
 
@@ -174,6 +183,7 @@ def test_markitdown_route_sends_every_boundary_to_isolated_worker(
     assert options == {
         "max_output_chars": 123,
         "timeout_seconds": 7,
+        "max_memory_bytes": 11,
         "validated_formats": validated,
         "script": None,
         "force_ocr": False,
@@ -581,6 +591,39 @@ def test_real_backend_failure_is_stable_and_does_not_expose_paths(tmp_path):
         dispatcher.close()
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="no memory reading on Windows")
+def test_worker_memory_reading_follows_touched_pages():
+    from d2md._backend_process import _worker_memory_bytes
+
+    before = _worker_memory_bytes()
+    allocation = bytearray(128 * 1024 * 1024)
+    allocation[:: 4096] = b"x" * len(allocation[:: 4096])
+
+    assert _worker_memory_bytes() >= before + 64 * 1024 * 1024
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="no memory reading on Windows")
+def test_worker_over_its_memory_ceiling_is_discarded_with_a_clear_error(tmp_path):
+    from d2md._backend_process import BackendDispatcher
+
+    source = tmp_path / "input.txt"
+    source.write_text("ordinary text", encoding="utf-8")
+    dispatcher = BackendDispatcher()
+    try:
+        with pytest.raises(ConversionError) as raised:
+            dispatcher.run(
+                "markitdown",
+                source,
+                max_output_chars=100,
+                timeout_seconds=60,
+                max_memory_bytes=1,
+            )
+        assert str(raised.value) == "backend memory limit exceeded"
+        assert dispatcher.worker_pid("markitdown") is None
+    finally:
+        dispatcher.close()
+
+
 def test_worker_spawn_failure_is_a_safe_conversion_error(tmp_path):
     from d2md._backend_process import BackendDispatcher
 
@@ -784,15 +827,41 @@ def test_unexpected_response_processing_error_retires_worker(
 def test_default_worker_command_is_an_independent_interpreter():
     from d2md._backend_process import _default_command
 
-    assert _default_command("docling") == [
-        sys.executable,
-        "-I",
-        "-u",
-        "-m",
-        "d2md._backend_process",
-        "--worker",
-        "docling",
-    ]
+    command = _default_command("docling")
+
+    assert command[:4] == [sys.executable, "-I", "-u", "-c"]
+    assert command[-2:] == ["--worker", "docling"]
+
+
+def test_worker_imports_from_the_parent_path_without_its_cwd(tmp_path, monkeypatch):
+    """`-I` drops user site and PYTHONPATH, where a parent may have found us."""
+    from d2md._backend_process import _default_command
+
+    forwarded = tmp_path / "user-site"
+    shadow = forwarded / "d2md"
+    shadow.mkdir(parents=True)
+    sentinel = tmp_path / "worker-started"
+    (shadow / "__init__.py").write_text("", encoding="utf-8")
+    (shadow / "_backend_process.py").write_text(
+        "from pathlib import Path\n"
+        "def main():\n"
+        f"    Path({str(sentinel)!r}).write_text('started', encoding='utf-8')\n"
+        "    return 0\n",
+        encoding="utf-8",
+    )
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+    monkeypatch.syspath_prepend(str(forwarded))
+    monkeypatch.syspath_prepend(str(cwd))
+
+    command = _default_command("markitdown")
+    finished = subprocess.run(command, stdin=subprocess.DEVNULL, timeout=30)
+
+    assert finished.returncode == 0
+    assert sentinel.read_text(encoding="utf-8") == "started"
+    assert str(forwarded) in json.loads(command[5])
+    assert str(cwd) not in json.loads(command[5])
 
 
 def test_control_frame_write_all_handles_short_writes():

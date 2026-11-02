@@ -14,7 +14,7 @@ import struct
 import tempfile
 import warnings
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import ceil
 from pathlib import Path
 
@@ -24,7 +24,7 @@ from .capabilities import (
     ensure_ocr_available,
     install_command,
 )
-from .direct_ocr import OCR_RENDER_SCALE, convert_with_ocr
+from .direct_ocr import OCR_RENDER_SCALE, convert_with_ocr, image_pages
 from .encoding import read_text, thai_looks_damaged
 from .errors import ConversionError
 from .page_markers import (
@@ -118,6 +118,7 @@ DEFAULT_MAX_PAGE_PIXELS = 40_000_000
 DEFAULT_MAX_TOTAL_PDF_PIXELS = 400_000_000
 DEFAULT_MAX_OUTPUT_CHARS = 20_000_000
 DEFAULT_MAX_BACKEND_SECONDS = 1_800
+DEFAULT_MAX_BACKEND_MEMORY_BYTES = 4 * 1024**3
 DEFAULT_MAX_ARCHIVE_MEMBERS = 10_000
 DEFAULT_MAX_ARCHIVE_BYTES = 500 * 1024 * 1024
 
@@ -191,6 +192,7 @@ class ConversionLimits:
     max_archive_members: int | None = DEFAULT_MAX_ARCHIVE_MEMBERS
     max_archive_bytes: int | None = DEFAULT_MAX_ARCHIVE_BYTES
     max_backend_seconds: int | None = DEFAULT_MAX_BACKEND_SECONDS
+    max_backend_memory_bytes: int | None = DEFAULT_MAX_BACKEND_MEMORY_BYTES
 
     def __post_init__(self) -> None:
         for name, value in self.__dict__.items():
@@ -207,6 +209,7 @@ UNLIMITED_LIMITS = ConversionLimits(
     max_total_pdf_pixels=None,
     max_output_chars=None,
     max_backend_seconds=None,
+    max_backend_memory_bytes=None,
     max_archive_members=None,
     max_archive_bytes=None,
 )
@@ -499,14 +502,16 @@ def _validate_image(
 
     try:
         with Image.open(path) as image:
-            pixels = image.width * image.height
+            for _ in image_pages(image, limits, Path(name)):
+                pass
+    except ConversionError:
+        raise
     except Image.DecompressionBombError as exc:
         raise ConversionError(f"cannot inspect image safely: {name}: {exc}") from exc
     except Exception as exc:
         if probe:
             return False
         raise ConversionError(f"cannot inspect image safely: {name}: {exc}") from exc
-    _check_limit(pixels, limits.max_page_pixels, "image pixel", name)
     return True
 
 
@@ -1038,10 +1043,11 @@ def _xlsx_markdown(file_stream) -> str:
     sections = []
     try:
         for sheet in workbook.worksheets:
+            # shortcut: openpyxl has no public stored-cell iterator, and
+            # iter_rows() allocates the whole used range; use one if it ships.
             nonempty = {
                 (cell.row, cell.column)
-                for row in sheet.iter_rows()
-                for cell in row
+                for cell in sheet._cells.values()
                 if _xlsx_cell_text(cell)
             }
             if not nonempty:
@@ -1085,9 +1091,7 @@ def _xlsx_markdown(file_stream) -> str:
                 )
 
             rows = []
-            for row in range(header_rows + 1, last_row + 1):
-                if not any((row, column) in nonempty for column in columns):
-                    continue
+            for row in sorted({row for row, _ in nonempty if row > header_rows}):
                 rows.append(
                     [
                         _xlsx_cell_text(
@@ -1209,6 +1213,7 @@ def _run_isolated_backend(
     *,
     max_output_chars: int | None,
     timeout_seconds: int | None,
+    max_memory_bytes: int | None = None,
     validated_formats: frozenset[str] = frozenset(),
     script: str | None = None,
     force_ocr: bool = False,
@@ -1223,6 +1228,7 @@ def _run_isolated_backend(
         path,
         max_output_chars=max_output_chars,
         timeout_seconds=timeout_seconds,
+        max_memory_bytes=max_memory_bytes,
         validated_formats=validated_formats,
         script=script,
         force_ocr=force_ocr,
@@ -1410,7 +1416,13 @@ def _convert_snapshot(
     ocr: bool,
 ) -> tuple[str, str]:
     """Run preflight and conversion using only one verified input snapshot."""
-    validated_formats = _validate_input(input_path, active_limits)
+    # The text route renders nothing, and direct OCR charges pixels as it renders.
+    preflight_limits = (
+        replace(active_limits, max_page_pixels=None, max_total_pdf_pixels=None)
+        if backend == "pypdfium2"
+        else active_limits
+    )
+    validated_formats = _validate_input(input_path, preflight_limits)
 
     if backend == "plain":
         return (
@@ -1428,6 +1440,7 @@ def _convert_snapshot(
                 input_path,
                 max_output_chars=active_limits.max_output_chars,
                 timeout_seconds=active_limits.max_backend_seconds,
+                max_memory_bytes=active_limits.max_backend_memory_bytes,
                 validated_formats=validated_formats,
                 script=None,
                 force_ocr=False,

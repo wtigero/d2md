@@ -8,6 +8,15 @@ No changes yet.
 
 ## [0.1.3]
 
+- Read every page of a multi-page TIFF during `--ocr`, bounded by the page and
+  pixel limits. Earlier versions silently kept only the first page.
+- Stop charging the default PDF text route for pixels it never renders, so long
+  born-digital PDFs reach the 500-page limit.
+- Read only stored XLSX cells, so a tiny sparse workbook stays cheap, and stop
+  the MarkItDown worker when its memory passes 4 GiB on macOS and Linux. Windows
+  has no memory ceiling yet.
+- Start backend workers with the parent's import path, so `pip install --user`
+  and `PYTHONPATH` installs can convert Office and web documents.
 - Combine merged two-row XLSX headers and repeat section context only within
   merged ranges.
 - Preserve XLSX cell line breaks as `<br>` and omit empty columns while keeping

@@ -8,6 +8,7 @@ import pytest
 from d2md.convert import (
     DEVICE_CHOICES,
     ConversionError,
+    ConversionLimits,
     _docling_device,
     _ensure_device_available,
     _normalize_device,
@@ -964,6 +965,25 @@ def test_xlsx_repeats_only_merged_context_and_preserves_cell_line_breaks(tmp_pat
     assert "| Policy Status | Lapsed | SELECT<br>FROM policies |  |" in markdown
     assert "| Policy Status | Expired |  |  |" in markdown
     assert "\\n" not in markdown
+
+
+def test_xlsx_reads_only_stored_cells_of_a_sparse_sheet(tmp_path):
+    from openpyxl import Workbook
+
+    source = tmp_path / "sparse.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["Field", "Value"])
+    sheet.append(["Name", "Alice"])
+    sheet["XFD1048576"] = "stray"
+    workbook.save(source)
+
+    markdown = convert(
+        source, limits=ConversionLimits(max_backend_seconds=20)
+    ).markdown
+
+    assert "| Name | Alice |" in markdown
+    assert "stray" in markdown
 
 
 def test_legacy_thai_text_file_survives(tmp_path):

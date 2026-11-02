@@ -56,6 +56,9 @@ guarantee that other software is safe. Run untrusted conversions with the
 least privileges and filesystem access practical, keep resource limits
 enabled, and review optional model downloads before first use.
 
+On macOS and Linux the MarkItDown worker also stops once its memory passes
+4 GiB. Windows and Docling workers have no memory ceiling.
+
 The default MarkItDown and Docling backend job deadline is 30 minutes (1,800
 seconds). Only the explicit trusted-input `--unsafe-unlimited` mode makes this
 deadline unlimited; it does not remove the need for OS, container, or job-level

@@ -4,6 +4,7 @@ import sys
 import pytest
 from PIL import Image
 
+from d2md.convert import _validate_image as validate_image
 from d2md.direct_ocr import convert_with_ocr
 from d2md.errors import ConversionError
 from d2md.ocr import Reading
@@ -77,6 +78,45 @@ def test_image_returns_text_and_actual_engine(tmp_path, monkeypatch):
         "ocrmac",
     )
     assert calls == [("RGB", "latin", ["vision"])]
+
+
+def _multi_page_tiff(path, pages=3):
+    first, *rest = [Image.new("RGB", (40, 20), "white") for _ in range(pages)]
+    first.save(path, save_all=True, append_images=rest)
+
+
+def test_multi_page_tiff_reads_every_page_in_order(tmp_path, monkeypatch):
+    source = tmp_path / "scan.tiff"
+    _multi_page_tiff(source)
+    texts = iter(("first page text", "second page text", "third page text"))
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda script: "vision")
+    monkeypatch.setattr(
+        "d2md.direct_ocr.read",
+        lambda image, script, engines: Reading(script, next(texts), 1.0),
+    )
+
+    assert convert_with_ocr(source, "latin", LIMITS) == (
+        "first page text\n\nsecond page text\n\nthird page text\n",
+        "ocrmac",
+    )
+
+
+@pytest.mark.parametrize(
+    ("limit", "value", "message"),
+    (
+        ("max_pdf_pages", 2, "image page limit"),
+        ("max_total_pdf_pixels", 1_000, "total image pixel limit"),
+    ),
+)
+def test_multi_page_tiff_is_bounded_at_preflight(
+    tmp_path, limit, value, message
+):
+    source = tmp_path / "scan.tiff"
+    _multi_page_tiff(source)
+    limits = SimpleNamespace(**{**LIMITS.__dict__, limit: value})
+
+    with pytest.raises(ConversionError, match=message):
+        validate_image(source, limits)
 
 
 def test_pdf_marks_pages_in_source_order(fake_pdfium, tmp_path, monkeypatch):

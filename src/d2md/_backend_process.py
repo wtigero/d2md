@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import atexit
 import codecs
+import ctypes
 import json
 import math
 import os
@@ -26,11 +27,21 @@ PROTOCOL_VERSION = 1
 MAX_FRAME_BYTES = 8 * 1024
 _RESULT_CHUNK_CHARS = 16 * 1024
 _RESULT_CHUNK_BYTES = 64 * 1024
+_MEMORY_POLL_SECONDS = 0.1
 _BACKENDS = frozenset({"markitdown", "docling"})
 _VALIDATED_FORMATS = frozenset({"pdf", "image"})
 _DEVICES = frozenset({"auto", "cpu", "cuda", "mps", "xpu"})
 _SCRIPTS = frozenset(
     {"thai", "japanese", "korean", "cyrillic", "arabic", "latin", "chinese"}
+)
+
+# `-I` keeps a hostile cwd off the path, but also drops user site and
+# PYTHONPATH, so the parent passes the import path it actually resolved.
+_WORKER_BOOTSTRAP = (
+    "import json, sys; "
+    "sys.path[:] = json.loads(sys.argv.pop(1)); "
+    "from d2md._backend_process import main; "
+    "raise SystemExit(main())"
 )
 
 _DISPATCHERS: weakref.WeakSet[object] = weakref.WeakSet()
@@ -56,12 +67,19 @@ def _conversion_error(message: str) -> Exception:
 
 
 def _default_command(backend: str) -> list[str]:
+    cwd = os.path.realpath(os.curdir)
+    import_path = [
+        os.path.abspath(entry)
+        for entry in sys.path
+        if isinstance(entry, str) and entry and os.path.realpath(entry) != cwd
+    ]
     return [
         sys.executable,
         "-I",
         "-u",
-        "-m",
-        "d2md._backend_process",
+        "-c",
+        _WORKER_BOOTSTRAP,
+        json.dumps(import_path),
         "--worker",
         backend,
     ]
@@ -372,6 +390,7 @@ class _Worker:
         *,
         max_output_chars: int | None,
         timeout_seconds: int | float | None,
+        max_memory_bytes: int | None,
         validated_formats: frozenset[str],
         script: str | None,
         force_ocr: bool,
@@ -399,6 +418,7 @@ class _Worker:
                     "path": os.fspath(path),
                     "result_path": os.fspath(result_path),
                     "max_output_chars": max_output_chars,
+                    "max_memory_bytes": max_memory_bytes,
                     "validated_formats": sorted(validated_formats),
                     "script": script,
                     "force_ocr": force_ocr,
@@ -509,6 +529,7 @@ class _Worker:
             code = response.get("code")
             if not isinstance(code, str) or code not in {
                 "output_limit",
+                "memory_limit",
                 "backend_failure",
             }:
                 raise _ProtocolError("backend returned an invalid error response")
@@ -517,6 +538,7 @@ class _Worker:
                 raise _ProtocolError("backend returned an invalid error response")
             expected_message = {
                 "output_limit": "backend output limit exceeded",
+                "memory_limit": "backend memory limit exceeded",
                 "backend_failure": f"{self.backend} backend failed",
             }[code]
             if message != expected_message:
@@ -644,6 +666,7 @@ class BackendDispatcher:
         *,
         max_output_chars: int | None,
         timeout_seconds: int | float | None,
+        max_memory_bytes: int | None = None,
         validated_formats: frozenset[str] = frozenset(),
         script: str | None = None,
         force_ocr: bool = False,
@@ -651,6 +674,7 @@ class BackendDispatcher:
         ocr_enabled: bool = False,
     ) -> str:
         max_output_chars = _validate_limit(max_output_chars, "output limit")
+        max_memory_bytes = _validate_limit(max_memory_bytes, "memory limit")
         timeout_seconds = _validate_timeout(timeout_seconds)
         _validate_backend_options(
             validated_formats=validated_formats,
@@ -664,6 +688,7 @@ class BackendDispatcher:
             verified_path,
             max_output_chars=max_output_chars,
             timeout_seconds=timeout_seconds,
+            max_memory_bytes=max_memory_bytes,
             validated_formats=validated_formats,
             script=script,
             force_ocr=force_ocr,
@@ -692,6 +717,7 @@ def run_isolated_backend(
     *,
     max_output_chars: int | None,
     timeout_seconds: int | float | None,
+    max_memory_bytes: int | None = None,
     validated_formats: frozenset[str] = frozenset(),
     script: str | None = None,
     force_ocr: bool = False,
@@ -703,6 +729,7 @@ def run_isolated_backend(
         path,
         max_output_chars=max_output_chars,
         timeout_seconds=timeout_seconds,
+        max_memory_bytes=max_memory_bytes,
         validated_formats=validated_formats,
         script=script,
         force_ocr=force_ocr,
@@ -723,6 +750,7 @@ def _validate_request(request: dict[str, object], family: str) -> dict[str, obje
         "path",
         "result_path",
         "max_output_chars",
+        "max_memory_bytes",
         "validated_formats",
         "script",
         "force_ocr",
@@ -744,6 +772,7 @@ def _validate_request(request: dict[str, object], family: str) -> dict[str, obje
     max_output_chars = _validate_limit(
         request.get("max_output_chars"), "output limit"
     )
+    max_memory_bytes = _validate_limit(request.get("max_memory_bytes"), "memory limit")
     formats_value = request.get("validated_formats")
     if (
         not isinstance(formats_value, list)
@@ -772,6 +801,7 @@ def _validate_request(request: dict[str, object], family: str) -> dict[str, obje
         "path": path,
         "result_path": result_path,
         "max_output_chars": max_output_chars,
+        "max_memory_bytes": max_memory_bytes,
         "validated_formats": formats,
         "script": script,
         "force_ocr": force_ocr,
@@ -810,6 +840,51 @@ def _send(protocol: BinaryIO, payload: dict[str, object]) -> None:
     _write_all_bytes(protocol, _encoded_frame(payload))
 
 
+def _worker_memory_bytes() -> int | None:
+    """Read this worker's memory, or None where no ceiling can be applied."""
+    try:
+        if sys.platform == "darwin":
+            # macOS compresses idle pages out of RSS, so a runaway parser can
+            # reach many GiB under a flat RSS. Footprint still counts them.
+            # rusage_info_v0 is a 16-byte UUID followed by 64-bit counters.
+            usage = (ctypes.c_uint64 * 12)()
+            libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+            if libproc.proc_pid_rusage(os.getpid(), 0, usage) != 0:
+                return None
+            return usage[9]
+        # VmHWM belongs to this address space. getrusage peak would inherit the
+        # parent's across exec on Linux.
+        with open("/proc/self/status", encoding="ascii", errors="replace") as status:
+            for line in status:
+                if line.startswith("VmHWM:"):
+                    return int(line.split()[1]) * 1024
+    except OSError:
+        pass
+    return None  # shortcut: no memory ceiling on Windows, add one if it matters.
+
+
+def _watch_memory(
+    limit: int,
+    protocol: BinaryIO,
+    request_id: str | None,
+    finished: threading.Event,
+) -> None:
+    """Stop a parser that outgrows its ceiling while it holds the main thread."""
+    while not finished.wait(_MEMORY_POLL_SECONDS):
+        if (_worker_memory_bytes() or 0) > limit:
+            _send(
+                protocol,
+                {
+                    "v": PROTOCOL_VERSION,
+                    "id": request_id,
+                    "status": "error",
+                    "code": "memory_limit",
+                    "message": "backend memory limit exceeded",
+                },
+            )
+            os._exit(1)
+
+
 def _worker_main(family: str) -> int:
     protocol_descriptor = os.dup(sys.stdout.fileno())
     devnull_descriptor = os.open(os.devnull, os.O_WRONLY)
@@ -836,19 +911,37 @@ def _worker_main(family: str) -> int:
         except _ProtocolError:
             return 2
 
+        finished = threading.Event()
+        watchdog = None
+        if (
+            values["max_memory_bytes"] is not None
+            and _worker_memory_bytes() is not None
+        ):
+            watchdog = threading.Thread(
+                target=_watch_memory,
+                args=(values["max_memory_bytes"], protocol, request_id, finished),
+                daemon=True,
+            )
+            watchdog.start()
+
         try:
-            if family == "markitdown":
-                markdown = _via_markitdown(
-                    values["path"], values["validated_formats"]
-                )
-            else:
-                markdown = _via_docling(
-                    values["path"],
-                    values["script"],
-                    values["force_ocr"],
-                    values["device"],
-                    ocr_enabled=values["ocr_enabled"],
-                )
+            try:
+                if family == "markitdown":
+                    markdown = _via_markitdown(
+                        values["path"], values["validated_formats"]
+                    )
+                else:
+                    markdown = _via_docling(
+                        values["path"],
+                        values["script"],
+                        values["force_ocr"],
+                        values["device"],
+                        ocr_enabled=values["ocr_enabled"],
+                    )
+            finally:
+                finished.set()
+                if watchdog is not None:
+                    watchdog.join()
             if not isinstance(markdown, str):
                 raise TypeError("backend returned a non-text result")
             char_count = len(markdown)
