@@ -1467,6 +1467,43 @@ def test_failed_reservation_leaves_no_empty_output(tmp_path, monkeypatch, interr
     assert not destination.exists()
 
 
+def test_interrupt_while_closing_the_reservation_leaves_no_empty_output(
+    tmp_path, monkeypatch
+):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+    destination = tmp_path / "report.md"
+    real_close = cli.os.close
+
+    def interrupted_close(descriptor):
+        real_close(descriptor)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli.os, "close", interrupted_close)
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._publish_by_reservation(temporary, destination)
+    monkeypatch.undo()
+    assert not destination.exists()
+
+
+def test_failed_cleanup_does_not_swallow_the_interrupt(tmp_path, monkeypatch):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+
+    def interrupted(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    def denied(*_args, **_kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(cli.os, "replace", interrupted)
+    monkeypatch.setattr(cli.os, "unlink", denied)
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._publish_by_reservation(temporary, tmp_path / "report.md")
+
+
 def test_eps_named_png_is_refused_before_pillow_can_run_ghostscript(tmp_path, monkeypatch):
     source = tmp_path / "disguised.png"
     source.write_bytes(b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n")

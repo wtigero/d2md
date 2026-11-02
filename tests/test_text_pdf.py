@@ -69,6 +69,8 @@ def test_docling_route_keeps_the_rendered_pixel_limit(
         "body\x0c<!-- Page number: 99 -->",
         "\xa0<!-- Page number: 99 -->",
         "<!--Page Number: 99-->",
+        "<!--\u2028Page number: 99 -->",
+        "<!-- Page number : 99 -->",
         "\r<!-- Content spans pages: 1-2 -->",
     ],
 )
@@ -147,7 +149,7 @@ def test_docling_pages_escape_forged_markers_and_keep_real_spans(monkeypatch):
     assert "<!-- Content spans pages: 1-2 -->" in markdown
 
 
-def _deck(path, short_page="brief", short_page_image=False):
+def _deck(path, short_page):
     pytest.importorskip("reportlab")
     from PIL import Image
     from reportlab.lib.utils import ImageReader
@@ -155,51 +157,32 @@ def _deck(path, short_page="brief", short_page_image=False):
 
     document = canvas.Canvas(str(path))
     for number in range(1, 6):
-        if number == 3:
-            if short_page == "brief":
-                document.drawString(72, 720, "Thank you")
-            elif short_page == "outlined":
-                document.drawString(72, 40, "Page 3 of 5")
-                document.rect(72, 600, 300, 60, fill=1)
-            if short_page_image:
-                image = ImageReader(Image.new("RGB", (40, 40), "white"))
-                document.drawImage(image, 72, 500, width=200, height=200)
-        else:
+        if number != 3:
             document.drawString(72, 720, f"Slide {number}. {FULL}")
+        elif short_page == "brief":
+            document.drawString(72, 720, "Thank you")
+        elif short_page == "image":
+            document.drawString(72, 720, "Thank you")
+            image = ImageReader(Image.new("RGB", (40, 40), "white"))
+            document.drawImage(image, 72, 500, width=200, height=200)
+        elif short_page == "outlined":
+            document.drawString(72, 40, "Page 3 of 5")
+            document.rect(72, 600, 300, 60, fill=1)
         document.showPage()
     document.save()
     return path
 
 
-def test_a_brief_slide_stays_on_the_text_route(tmp_path):
-    result = convert(_deck(tmp_path / "deck.pdf"))
-
-    assert result.backend == "pypdfium2"
-    assert "Thank you" in result.markdown
-
-
-def test_a_truly_blank_page_stays_on_the_text_route(tmp_path):
-    result = convert(_deck(tmp_path / "deck.pdf", short_page="blank"))
-
-    assert result.backend == "pypdfium2"
-    assert "<!-- Page number: 3 -->" in result.markdown
-
-
-def test_a_short_page_with_an_image_still_needs_ocr(tmp_path):
+@pytest.mark.parametrize("short_page", ["brief", "image", "outlined", "blank"])
+def test_short_pages_need_ocr_rather_than_risk_silent_text_loss(tmp_path, short_page):
+    """Annotations, broken fonts, and outlines can hide words from every object
+    check, so a short page is judged by its extracted text alone."""
     with pytest.raises(ConversionError, match="needs OCR"):
-        convert(_deck(tmp_path / "deck.pdf", short_page_image=True))
+        convert(_deck(tmp_path / "deck.pdf", short_page))
 
 
-def test_outlined_text_over_a_short_footer_is_not_dropped(tmp_path):
-    with pytest.raises(ConversionError, match="needs OCR"):
-        convert(_deck(tmp_path / "deck.pdf", short_page="outlined"))
-
-
-def test_an_unreadable_pdf_has_no_scanned_page_count(tmp_path):
-    source = tmp_path / "broken.pdf"
-    source.write_bytes(b"not a pdf")
-
-    assert convert_module._scanned_page_count(source, [""]) is None
+def test_blank_pages_count_toward_the_scan_tolerance():
+    assert not _fast_text_is_trustworthy([FULL] * 9 + [""] * 3)
 
 
 def test_fixtures_are_the_shape_the_detector_expects():

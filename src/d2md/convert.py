@@ -1293,59 +1293,18 @@ def _via_pypdfium2(
     return pages
 
 
-def _scanned_page_count(path: Path, pages: list[str]) -> int | None:
-    """Count short pages that look scanned, not pages that are just brief.
-
-    A closing slide reading "Thank you" is complete, and a blank page has
-    nothing to read. A short page with anything else on it may hold words only
-    OCR can read, such as a scan, or body text drawn as outlines over a footer.
-    Returns None when the PDF cannot be inspected.
-    """
-    import pypdfium2
-    from pypdfium2 import raw as pdfium_c
-
-    short = [
-        index
-        for index, text in enumerate(pages)
-        if len(text.strip()) < EMPTY_PAGE_CHARS
-    ]
-    if not short:
-        return 0
-    try:
-        document = pypdfium2.PdfDocument(str(path))
-        try:
-            scanned = 0
-            for index in short:
-                page = document[index]
-                try:
-                    scanned += any(
-                        item.type != pdfium_c.FPDF_PAGEOBJ_TEXT
-                        for item in page.get_objects()
-                    )
-                finally:
-                    page.close()
-            return scanned
-        finally:
-            document.close()
-    except pypdfium2.PdfiumError:
-        return None
-
-
-def _fast_text_is_trustworthy(
-    pages: list[str], scanned_pages: int | None = None
-) -> bool:
+def _fast_text_is_trustworthy(pages: list[str]) -> bool:
     """Decide whether pypdfium2's output can stand in for Docling's.
 
     Two ways it cannot: the file is a scan with no text layer, or the text
     layer exists but its Thai came out stripped of marks. Neither condition
     raises, so both have to be tested before direct text is accepted.
     """
-    if not any(page.strip() for page in pages):
+    if not pages:
         return False
 
-    if scanned_pages is None:
-        scanned_pages = sum(len(p.strip()) < EMPTY_PAGE_CHARS for p in pages)
-    if scanned_pages / len(pages) > SCAN_PAGE_FRACTION:
+    empty = sum(len(p.strip()) < EMPTY_PAGE_CHARS for p in pages)
+    if empty / len(pages) > SCAN_PAGE_FRACTION:
         return False
 
     return not thai_looks_damaged("\n".join(pages))
@@ -1511,9 +1470,7 @@ def _convert_snapshot(
             raise
         except Exception:
             pages = []
-        if _fast_text_is_trustworthy(
-            pages, _scanned_page_count(input_path, pages)
-        ):
+        if _fast_text_is_trustworthy(pages):
             return format_pdf_text_pages(pages), backend
         if not ocr:
             raise ConversionError(

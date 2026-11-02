@@ -136,8 +136,11 @@ Second-page content.
 The default text path, direct `--ocr`, and `--docling` PDF routes all emit this
 shape. Page order is unchanged, while RAG loaders and other consumers can split
 on `<!-- Page number: N -->` without showing extra headings in rendered
-Markdown. Text inside a document cannot produce that string, because any
-look-alike is written with `&lt;` instead of `<`. The markers are part of the Markdown written to files and `--stdout`;
+Markdown. Text inside a PDF cannot produce that exact string, because any
+look-alike is written with `&lt;` instead of `<`. Split before you normalize or
+unescape the text, because those steps can turn a look-alike into a real marker.
+Other input types carry their text through unchanged, so `.txt` and `.md` files
+can contain the same string. The markers are part of the Markdown written to files and `--stdout`;
 in `--json` mode, the JSON report still describes the generated Markdown file
 rather than embedding its contents.
 

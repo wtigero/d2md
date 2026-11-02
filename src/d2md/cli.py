@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Iterator
-from contextlib import nullcontext, redirect_stdout
+from contextlib import nullcontext, redirect_stdout, suppress
 from dataclasses import dataclass
 import errno
 import json
@@ -455,21 +455,22 @@ def _publish_by_reservation(
     no-overwrite promise, and the rename keeps a reader from seeing half a file.
     """
     try:
-        os.close(
-            os.open(
-                destination,
-                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                0o600,
-                dir_fd=dir_fd,
-            )
+        descriptor = os.open(
+            destination,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            0o600,
+            dir_fd=dir_fd,
         )
     except FileExistsError:
         return False
     try:
+        os.close(descriptor)
         os.replace(temporary, destination, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
     except BaseException:
         # An empty placeholder would look finished, and a rerun would skip it.
-        os.unlink(destination, dir_fd=dir_fd)
+        # A failed cleanup must not replace the original error, such as Ctrl+C.
+        with suppress(OSError):
+            os.unlink(destination, dir_fd=dir_fd)
         raise
     return True
 
@@ -966,7 +967,10 @@ def main(argv: list[str] | None = None) -> int:
                         print(f"FAILED  {display_text(exc)}")
                     continue
 
-                if destination == "existing" and not args.force:
+                # The claim is this same file, listed again under another path.
+                if destination == "existing" and (
+                    not args.force or output_key in claimed_outputs
+                ):
                     claimed_outputs[output_key] = source
                     skipped += 1
                     result_rows.append(

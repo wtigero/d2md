@@ -341,6 +341,7 @@ def test_same_output_name_fails_the_later_input_instead_of_replacing_it(
     [
         ("\u0390.txt", "\u03aa\u0301.txt"),  # case folding undoes NFC
         ("caf\u00e9.txt", "cafe\u0301.txt"),
+        ("Stra\u00dfe.txt", "strasse.txt"),
         ("\u03b1\u0345\u0301.txt", "\u03b1\u0301\u0345.txt"),  # NFC must come first
     ],
 )
@@ -391,6 +392,17 @@ def test_one_file_spelled_two_ways_is_not_a_collision(tmp_path, capsys):
 
     assert code == 0
     assert "already used" not in capsys.readouterr().out
+
+
+def test_one_file_listed_twice_converts_once_even_with_force(tmp_path, capsys):
+    source = tmp_path / "d" / "a.txt"
+    source.parent.mkdir()
+    source.write_text("one document body", encoding="utf-8")
+    other_spelling = source.parent / ".." / "d" / "a.txt"
+    command = [str(source), str(other_spelling), "-o", str(tmp_path / "out"), "--force"]
+
+    assert cli.main(command) == 0
+    assert "1 converted · 1 skipped · 0 failed" in capsys.readouterr().out
 
 
 def test_directory_inputs_are_converted_inside_their_collected_root(
