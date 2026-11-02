@@ -33,6 +33,25 @@ def _check(value: int, limit: int | None, label: str, path: Path) -> None:
         )
 
 
+def image_pages(image, limits: OcrLimits, path: Path):
+    """Yield each scanned page within limits; only TIFF is treated as paged."""
+    if image.format == "TIFF":
+        from PIL import ImageSequence
+
+        pages = ImageSequence.Iterator(image)
+    else:
+        pages = (image,)
+
+    total_pixels = 0
+    for number, page in enumerate(pages, 1):
+        _check(number, limits.max_pdf_pages, "image page", path)
+        pixels = page.width * page.height
+        _check(pixels, limits.max_page_pixels, "image pixel", path)
+        total_pixels += pixels
+        _check(total_pixels, limits.max_total_pdf_pixels, "total image pixel", path)
+        yield page
+
+
 def convert_with_ocr(
     path: Path, script: str, limits: OcrLimits
 ) -> tuple[str, str]:
@@ -95,19 +114,15 @@ def convert_with_ocr(
         from PIL import Image
 
         with Image.open(path) as source:
-            _check(
-                source.width * source.height,
-                limits.max_page_pixels,
-                "image pixel",
-                path,
-            )
-            image = source.convert("RGB")
-            try:
-                text = read(image, script, engines=[engine]).text
-            finally:
-                image.close()
-        texts.append(text)
-        _check(len(text), limits.max_output_chars, "output", path)
+            for page in image_pages(source, limits, path):
+                image = page.convert("RGB")
+                try:
+                    text = read(image, script, engines=[engine]).text
+                finally:
+                    image.close()
+                texts.append(text)
+                total_chars += len(text)
+                _check(total_chars, limits.max_output_chars, "output", path)
 
     if path.suffix.lower() == ".pdf":
         output = format_pdf_pages(texts)

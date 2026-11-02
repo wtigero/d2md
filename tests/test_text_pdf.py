@@ -5,17 +5,53 @@ to the same shape: thousands of Thai consonants with either no `ำ` at all
 (broken) or a healthy sprinkling of them.
 """
 
+import importlib
 from pathlib import Path
 
 import pytest
 
-from d2md.convert import _fast_text_is_trustworthy, backend_for, convert
+from d2md.convert import (
+    ConversionError,
+    ConversionLimits,
+    _fast_text_is_trustworthy,
+    backend_for,
+    convert,
+)
 from d2md.encoding import thai_consonant_count, thai_looks_damaged
+
+convert_module = importlib.import_module("d2md.convert")
 
 # 12 consonants per repeat, no ำ anywhere — what a broken ToUnicode CMap leaves.
 BROKEN = "ประกนอบตเหตสวนบคคล ระบบสงสนคาถงบานทวประเทศไทย " * 60
 # Same length, with ำ present as real Thai prose always has it.
 HEALTHY = "ประกันอุบัติเหตุส่วนบุคคล จำกัด น้ำ ทำ คำ สำหรับ " * 60
+
+
+def test_text_route_is_not_charged_for_pixels_it_never_renders(multi_page_text_pdf):
+    limits = ConversionLimits(max_page_pixels=1, max_total_pdf_pixels=1)
+
+    result = convert(multi_page_text_pdf, limits=limits)
+
+    assert result.backend == "pypdfium2"
+    assert "<!-- Page number: 3 -->" in result.markdown
+
+
+def test_text_route_still_enforces_the_page_limit(multi_page_text_pdf):
+    with pytest.raises(ConversionError, match="PDF page limit"):
+        convert(multi_page_text_pdf, limits=ConversionLimits(max_pdf_pages=2))
+
+
+def test_docling_route_keeps_the_rendered_pixel_limit(
+    multi_page_text_pdf, monkeypatch
+):
+    monkeypatch.setattr(convert_module, "ensure_docling_available", lambda: None)
+
+    with pytest.raises(ConversionError, match="rendered pixel limit"):
+        convert(
+            multi_page_text_pdf,
+            docling=True,
+            limits=ConversionLimits(max_total_pdf_pixels=1),
+        )
 
 
 def test_fixtures_are_the_shape_the_detector_expects():
