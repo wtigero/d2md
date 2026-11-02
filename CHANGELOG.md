@@ -16,12 +16,12 @@ No changes yet.
   report success.
 - Write new outputs to filesystems without hard links, such as exFAT, while
   still refusing to overwrite an existing file.
-- Escape document text that looks like a page marker, so a PDF cannot forge
-  `<!-- Page number: N -->`.
+- Escape document text that looks like a page marker, anywhere in the text, so
+  a PDF cannot forge `<!-- Page number: N -->`.
 - Open images as PNG, JPEG, TIFF, BMP, or WebP only, so an EPS named `.png` can
   no longer reach Ghostscript through Pillow.
-- Stop asking for OCR on a PDF with a brief text page. A short page now counts
-  as scanned only if it holds an image, or objects and no text at all.
+- Stop asking for OCR on a PDF with a brief text-only or blank page. A short
+  page with anything other than text on it still counts as scanned.
 - Accept short plain text files. Only an empty one fails.
 - Keep d2md's own error text from backend workers instead of a generic failure.
 - Copy each CLI input once, through one input-safety path shared with

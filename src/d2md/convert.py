@@ -1293,11 +1293,13 @@ def _via_pypdfium2(
     return pages
 
 
-def _scanned_page_count(path: Path, pages: list[str]) -> int:
+def _scanned_page_count(path: Path, pages: list[str]) -> int | None:
     """Count short pages that look scanned, not pages that are just brief.
 
-    A closing slide reading "Thank you" is complete. A short page holding an
-    image, or objects with no text at all, may have words OCR would find.
+    A closing slide reading "Thank you" is complete, and a blank page has
+    nothing to read. A short page with anything else on it may hold words only
+    OCR can read, such as a scan, or body text drawn as outlines over a footer.
+    Returns None when the PDF cannot be inspected.
     """
     import pypdfium2
     from pypdfium2 import raw as pdfium_c
@@ -1309,21 +1311,24 @@ def _scanned_page_count(path: Path, pages: list[str]) -> int:
     ]
     if not short:
         return 0
-    document = pypdfium2.PdfDocument(str(path))
     try:
-        scanned = 0
-        for index in short:
-            page = document[index]
-            try:
-                images = page.get_objects(filter=(pdfium_c.FPDF_PAGEOBJ_IMAGE,))
-                scanned += next(images, None) is not None or (
-                    not pages[index].strip() and page.count_objects() > 0
-                )
-            finally:
-                page.close()
-        return scanned
-    finally:
-        document.close()
+        document = pypdfium2.PdfDocument(str(path))
+        try:
+            scanned = 0
+            for index in short:
+                page = document[index]
+                try:
+                    scanned += any(
+                        item.type != pdfium_c.FPDF_PAGEOBJ_TEXT
+                        for item in page.get_objects()
+                    )
+                finally:
+                    page.close()
+            return scanned
+        finally:
+            document.close()
+    except pypdfium2.PdfiumError:
+        return None
 
 
 def _fast_text_is_trustworthy(
@@ -1506,11 +1511,9 @@ def _convert_snapshot(
             raise
         except Exception:
             pages = []
-        try:
-            scanned_pages = _scanned_page_count(input_path, pages)
-        except Exception:
-            scanned_pages = None
-        if _fast_text_is_trustworthy(pages, scanned_pages):
+        if _fast_text_is_trustworthy(
+            pages, _scanned_page_count(input_path, pages)
+        ):
             return format_pdf_text_pages(pages), backend
         if not ocr:
             raise ConversionError(

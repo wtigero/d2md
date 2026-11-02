@@ -1451,23 +1451,55 @@ def test_output_without_hard_links_converts_and_never_overwrites(
     assert [entry.name for entry in outdir.iterdir()] == ["report.md"]
 
 
+@pytest.mark.parametrize("interruption", [OSError("disk gone"), KeyboardInterrupt()])
+def test_failed_reservation_leaves_no_empty_output(tmp_path, monkeypatch, interruption):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+    destination = tmp_path / "report.md"
+
+    def fail(*_args, **_kwargs):
+        raise interruption
+
+    monkeypatch.setattr(cli.os, "replace", fail)
+
+    with pytest.raises(type(interruption)):
+        cli._publish_by_reservation(temporary, destination)
+    assert not destination.exists()
+
+
 def test_eps_named_png_is_refused_before_pillow_can_run_ghostscript(tmp_path, monkeypatch):
     source = tmp_path / "disguised.png"
     source.write_bytes(b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n")
     monkeypatch.setattr(convert_module, "ensure_ocr_available", lambda: None)
-    monkeypatch.setattr(
-        "PIL.EpsImagePlugin.gs_binary", lambda: pytest.fail("gs was reached"), raising=False
-    )
 
     with pytest.raises(ConversionError, match="cannot inspect image safely"):
         convert(source, ocr=True)
 
 
-def test_direct_ocr_refuses_a_format_it_did_not_ask_for(tmp_path):
-    from PIL import Image, UnidentifiedImageError
+def _gif_named_png(path):
+    """A format Pillow reads unaided, so a missing restriction shows up."""
+    from PIL import Image
 
-    source = tmp_path / "disguised.png"
-    source.write_bytes(b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n")
+    Image.new("L", (8, 8)).save(path, format="GIF")
+    return path
+
+
+def test_direct_ocr_opens_only_the_accepted_formats(tmp_path, monkeypatch):
+    from PIL import UnidentifiedImageError
+
+    from d2md.direct_ocr import convert_with_ocr
+
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda _script: "rapidocr")
 
     with pytest.raises(UnidentifiedImageError):
-        Image.open(source, formats=convert_module.IMAGE_FORMATS)
+        convert_with_ocr(
+            _gif_named_png(tmp_path / "disguised.png"),
+            "latin",
+            convert_module.DEFAULT_LIMITS,
+        )
+
+
+def test_script_sampling_opens_only_the_accepted_formats(tmp_path):
+    source = _gif_named_png(tmp_path / "disguised.png")
+
+    assert list(convert_module._sample_images(source)) == []

@@ -467,7 +467,8 @@ def _publish_by_reservation(
         return False
     try:
         os.replace(temporary, destination, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
-    except OSError:
+    except BaseException:
+        # An empty placeholder would look finished, and a rerun would skip it.
         os.unlink(destination, dir_fd=dir_fd)
         raise
     return True
@@ -927,7 +928,7 @@ def main(argv: list[str] | None = None) -> int:
 
     done = skipped = 0
     published_output_chars = 0
-    claimed_outputs: dict[str, Path] = {}
+    claimed_outputs: dict[str, CollectedInput] = {}
     result_rows: list[dict[str, object]] = []
     stdout_markdown = ""
     machine_quiet = args.quiet or args.json_output or args.stdout
@@ -935,13 +936,16 @@ def main(argv: list[str] | None = None) -> int:
         for index, source in enumerate(files, 1):
             filename = f"{source.path.stem}.md"
             # macOS and Windows treat these spellings as one output file.
-            output_key = unicodedata.normalize("NFC", filename).casefold()
+            # Case folding can undo NFC, so normalize again after it.
+            output_key = unicodedata.normalize(
+                "NFC", unicodedata.normalize("NFC", filename).casefold()
+            )
             if output_directory is not None:
-                claimed_by = claimed_outputs.get(output_key, source.path)
-                if claimed_by != source.path:
+                claimed_by = claimed_outputs.get(output_key, source)
+                if claimed_by.identity != source.identity:
                     message = (
                         f"output name {filename} is already used by "
-                        f"{claimed_by.name} in this run"
+                        f"{claimed_by.path.name} in this run"
                     )
                     failures.append((source.path, message))
                     if not args.json_output:
@@ -963,7 +967,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
 
                 if destination == "existing" and not args.force:
-                    claimed_outputs[output_key] = source.path
+                    claimed_outputs[output_key] = source
                     skipped += 1
                     result_rows.append(
                         {
@@ -1038,7 +1042,7 @@ def main(argv: list[str] | None = None) -> int:
                             "refusing to overwrite output created during conversion: "
                             f"{filename}"
                         )
-                    claimed_outputs[output_key] = source.path
+                    claimed_outputs[output_key] = source
                 published_output_chars = prospective_output_chars
             except ConversionError as exc:
                 failures.append((source.path, str(exc)))

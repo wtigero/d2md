@@ -8,13 +8,17 @@ _PDF_CONTENT_SPAN_MARKER = re.compile(
     r"(?m)^<!-- Content spans pages: [1-9]\d*(?:-[1-9]\d*|(?:,[1-9]\d*)+) -->\n?"
 )
 _FORGED_MARKER = re.compile(
-    r"(?m)^(?=[ \t]*<!--[ \t]*(?:Page number|Content spans pages):)"
+    r"<(?=!--\s*(?:Page number|Content spans pages)\s*:)", re.IGNORECASE
 )
 
 
 def escape_page_markers(text: str) -> str:
-    """Stop document text from posing as a marker this module writes."""
-    return _FORGED_MARKER.sub(r"\\", text)
+    """Stop document text from posing as a marker this module writes.
+
+    This covers mid-line text and every line separator, because consumers split
+    on the bare marker, and PDF text can carry \\r, form feeds, and U+2028.
+    """
+    return _FORGED_MARKER.sub("&lt;", text)
 
 
 def format_pdf_pages(pages: Iterable[str]) -> str:
