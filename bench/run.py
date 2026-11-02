@@ -15,7 +15,7 @@ English, and nothing in its output says which happened.
 
 Engines:
 
-    pypdfium2          the --fast path, no OCR at all — the floor
+    pypdfium2          the default text path, no OCR at all — the floor
     docling-auto       Docling's default, whatever it picks
     docling-ocrmac     Docling + Apple Vision
     docling-rapidocr   Docling + RapidOCR

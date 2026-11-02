@@ -1,17 +1,11 @@
 """An explicit OCR language must be readable before the first input starts."""
 
-from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
 
 from d2md import cli
 from d2md import ocr
-
-
-@contextmanager
-def _passthrough_snapshot(source, limits):
-    yield source.path
 
 
 @pytest.fixture
@@ -95,7 +89,6 @@ def test_readable_script_is_forwarded_to_the_converter(
         return SimpleNamespace(markdown="converted output long enough", backend="docling")
 
     monkeypatch.setattr(cli, "convert", fake_convert)
-    monkeypatch.setattr(cli, "_snapshot_input", _passthrough_snapshot)
 
     exit_code = cli.main(
         [str(pdf), "--ocr", "--lang", "latin", "-o", str(tmp_path / "out")]

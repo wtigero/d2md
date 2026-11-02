@@ -28,6 +28,7 @@ MAX_FRAME_BYTES = 8 * 1024
 _RESULT_CHUNK_CHARS = 16 * 1024
 _RESULT_CHUNK_BYTES = 64 * 1024
 _MEMORY_POLL_SECONDS = 0.1
+_MAX_ERROR_CHARS = 512
 _BACKENDS = frozenset({"markitdown", "docling"})
 _VALIDATED_FORMATS = frozenset({"pdf", "image"})
 _DEVICES = frozenset({"auto", "cpu", "cuda", "mps", "xpu"})
@@ -530,12 +531,15 @@ class _Worker:
             if not isinstance(code, str) or code not in {
                 "output_limit",
                 "memory_limit",
+                "conversion_error",
                 "backend_failure",
             }:
                 raise _ProtocolError("backend returned an invalid error response")
             message = response.get("message")
             if not isinstance(message, str) or not message or len(message) > 2_048:
                 raise _ProtocolError("backend returned an invalid error response")
+            if code == "conversion_error":
+                raise _ProtocolError(message)
             expected_message = {
                 "output_limit": "backend output limit exceeded",
                 "memory_limit": "backend memory limit exceeded",
@@ -886,6 +890,8 @@ def _watch_memory(
 
 
 def _worker_main(family: str) -> int:
+    from .errors import ConversionError
+
     protocol_descriptor = os.dup(sys.stdout.fileno())
     devnull_descriptor = os.open(os.devnull, os.O_WRONLY)
     os.dup2(devnull_descriptor, 1)
@@ -970,6 +976,20 @@ def _worker_main(family: str) -> int:
                     "bytes": byte_count,
                 },
             )
+        except ConversionError as exc:
+            # Our own errors tell the user what to fix. Library errors below
+            # stay generic because they can quote paths and file content.
+            _send(
+                protocol,
+                {
+                    "v": PROTOCOL_VERSION,
+                    "id": request_id,
+                    "status": "error",
+                    "code": "conversion_error",
+                    "message": str(exc)[:_MAX_ERROR_CHARS] or f"{family} backend failed",
+                },
+            )
+            return 1
         except BaseException:
             _send(
                 protocol,

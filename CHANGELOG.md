@@ -8,6 +8,24 @@ No changes yet.
 
 ## [0.1.3]
 
+- Remove the `--fast` option, the `fast` and `display_name` arguments of
+  `convert()`, and the unused Wikipedia, YouTube, Bing, and audio converters.
+  `lang` is now the second positional argument of `convert()`.
+- Report a second input that needs an output name already used in the run as
+  failed, even with `--force`. Earlier versions replaced or skipped it and could
+  report success.
+- Write new outputs to filesystems without hard links, such as exFAT, while
+  still refusing to overwrite an existing file.
+- Escape document text that looks like a page marker, so a PDF cannot forge
+  `<!-- Page number: N -->`.
+- Open images as PNG, JPEG, TIFF, BMP, or WebP only, so an EPS named `.png` can
+  no longer reach Ghostscript through Pillow.
+- Stop asking for OCR on a PDF with a brief text page. A short page now counts
+  as scanned only if it holds an image, or objects and no text at all.
+- Accept short plain text files. Only an empty one fails.
+- Keep d2md's own error text from backend workers instead of a generic failure.
+- Copy each CLI input once, through one input-safety path shared with
+  `convert()`, and name the link that stopped an input.
 - Read every page of a multi-page TIFF during `--ocr`, bounded by the page and
   pixel limits. Earlier versions silently kept only the first page.
 - Stop charging the default PDF text route for pixels it never renders, so long

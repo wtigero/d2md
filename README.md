@@ -383,12 +383,10 @@ or any other capability.
 | `--version` | print the installed `d2md` version and exit |
 | `--unsafe-unlimited` | disable resource ceilings for trusted inputs only |
 
-The former `--fast` option is still accepted as a hidden, deprecated no-op and
-will be removed in a future minor release. Direct PDF text extraction is now the
-default.
-
-If multiple inputs have the same basename, the first output is kept unless
-`--force` is used. The command exits non-zero if any input fails:
+If two inputs in one run need the same output name, such as `a/same.pdf` and
+`b/same.docx`, the first keeps it and the later input is reported as failed,
+with or without `--force`. Names that differ only in case count as the same. The
+command exits non-zero if any input fails:
 
 ```bash
 d2md ./inbox -o ./markdown || echo "some documents need attention"

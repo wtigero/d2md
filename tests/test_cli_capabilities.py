@@ -1,15 +1,9 @@
-from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
 
 from d2md import cli
 from d2md.errors import ConversionError
-
-
-@contextmanager
-def passthrough(source, limits):
-    yield source.path
 
 
 def fake_success(seen):
@@ -27,19 +21,18 @@ def test_default_forwards_no_heavy_mode(tmp_path, monkeypatch):
     source = tmp_path / "report.pdf"
     source.write_bytes(b"fake")
     seen = []
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", fake_success(seen))
 
     assert cli.main([str(source), "-o", str(tmp_path / "out")]) == 0
     assert seen == [
         {
-            "fast": None,
             "lang": None,
             "limits": cli.DEFAULT_LIMITS,
             "device": "auto",
             "ocr": False,
             "docling": False,
-            "display_name": "report.pdf",
+            "identity": cli._file_identity(source.lstat()),
+            "root": None,
         }
     ]
 
@@ -48,7 +41,6 @@ def test_ocr_and_docling_flags_are_forwarded(tmp_path, monkeypatch):
     source = tmp_path / "scan.pdf"
     source.write_bytes(b"fake")
     seen = []
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", fake_success(seen))
     monkeypatch.setattr(cli, "ensure_ocr_available", lambda: None)
     monkeypatch.setattr(cli, "ensure_docling_available", lambda: None)
@@ -120,20 +112,6 @@ def test_non_auto_device_requires_docling(capsys):
 
     assert raised.value.code == 2
     assert "--device requires --docling" in capsys.readouterr().err
-
-
-def test_deprecated_fast_is_hidden_and_warns(tmp_path, monkeypatch, capsys):
-    source = tmp_path / "report.pdf"
-    source.write_bytes(b"fake")
-    seen = []
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
-    monkeypatch.setattr(cli, "convert", fake_success(seen))
-
-    assert cli.main(
-        [str(source), "--fast", "-o", str(tmp_path / "out")]
-    ) == 0
-    assert seen[0]["fast"] is True
-    assert "--fast is deprecated" in capsys.readouterr().err
 
 
 def test_engines_without_ocr_prints_repair_command(monkeypatch, capsys):

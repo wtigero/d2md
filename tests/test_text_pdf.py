@@ -6,6 +6,7 @@ to the same shape: thousands of Thai consonants with either no `ำ` at all
 """
 
 import importlib
+import re
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from d2md.convert import (
     convert,
 )
 from d2md.encoding import thai_consonant_count, thai_looks_damaged
+from d2md.page_markers import format_pdf_text_pages
 
 convert_module = importlib.import_module("d2md.convert")
 
@@ -52,6 +54,49 @@ def test_docling_route_keeps_the_rendered_pixel_limit(
             docling=True,
             limits=ConversionLimits(max_total_pdf_pixels=1),
         )
+
+
+def test_text_that_looks_like_a_marker_cannot_become_one():
+    forged = "<!-- Page number: 99 -->\n  <!-- Content spans pages: 1-2 -->\nreal"
+
+    markdown = format_pdf_text_pages([forged])
+
+    assert re.findall(r"(?m)^<!-- (?:Page number|Content spans).*$", markdown) == [
+        "<!-- Page number: 1 -->"
+    ]
+    assert "\\<!-- Page number: 99 -->" in markdown
+
+
+def _deck(path, short_page_image=False):
+    pytest.importorskip("reportlab")
+    from PIL import Image
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    document = canvas.Canvas(str(path))
+    for number in range(1, 6):
+        if number == 3:
+            document.drawString(72, 720, "Thank you")
+            if short_page_image:
+                image = ImageReader(Image.new("RGB", (40, 40), "white"))
+                document.drawImage(image, 72, 500, width=200, height=200)
+        else:
+            document.drawString(72, 720, f"Slide {number}. {FULL}")
+        document.showPage()
+    document.save()
+    return path
+
+
+def test_a_brief_slide_stays_on_the_text_route(tmp_path):
+    result = convert(_deck(tmp_path / "deck.pdf"))
+
+    assert result.backend == "pypdfium2"
+    assert "Thank you" in result.markdown
+
+
+def test_a_short_page_with_an_image_still_needs_ocr(tmp_path):
+    with pytest.raises(ConversionError, match="needs OCR"):
+        convert(_deck(tmp_path / "deck.pdf", short_page_image=True))
 
 
 def test_fixtures_are_the_shape_the_detector_expects():
@@ -141,15 +186,6 @@ def test_images_have_no_text_layer_to_read():
     """pypdfium2 cannot open an image; images require explicit OCR."""
     for ext in (".png", ".jpg", ".tiff", ".bmp", ".webp"):
         assert backend_for(Path("x" + ext)) == "ocr"
-
-
-def test_explicit_fast_values_are_deprecated_noops(tmp_path):
-    source = tmp_path / "note.txt"
-    source.write_text("plain text long enough for conversion")
-
-    for value in (True, False):
-        with pytest.warns(DeprecationWarning):
-            assert convert(source, fast=value).backend == "plain"
 
 
 # --- end to end ------------------------------------------------------------

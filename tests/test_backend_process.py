@@ -1184,3 +1184,37 @@ def test_fork_while_dispatcher_lock_is_held_resets_child_state(
         assert dispatcher.worker_pid("markitdown") == parent_worker_pid
     finally:
         dispatcher.close()
+
+
+def test_worker_keeps_our_own_error_text_within_a_bound(tmp_path):
+    from d2md._backend_process import BackendDispatcher
+
+    source = tmp_path / "report.docx"
+    source.write_bytes(b"not read by this fixture")
+    worker = textwrap.dedent(
+        """
+        import importlib
+
+        from d2md._backend_process import main
+        from d2md.errors import ConversionError
+
+        def reject(*_args, **_kwargs):
+            raise ConversionError("device cuda is unavailable " + "x" * 5000)
+
+        importlib.import_module("d2md.convert")._via_markitdown = reject
+        raise SystemExit(main(["--worker", "markitdown"]))
+        """
+    )
+    dispatcher = BackendDispatcher(
+        command_factory=lambda _backend: [sys.executable, "-c", worker]
+    )
+    try:
+        with pytest.raises(ConversionError) as raised:
+            dispatcher.run(
+                "markitdown", source, max_output_chars=100, timeout_seconds=30
+            )
+    finally:
+        dispatcher.close()
+
+    assert str(raised.value).startswith("device cuda is unavailable")
+    assert len(str(raised.value)) == 512

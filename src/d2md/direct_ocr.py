@@ -6,10 +6,12 @@ from typing import Protocol
 
 from .errors import ConversionError
 from .ocr import engine_for, read
-from .page_markers import format_pdf_pages
+from .page_markers import format_pdf_text_pages
 
 
 OCR_RENDER_SCALE = 2.0
+# Without this, Pillow sniffs any format it knows. An EPS named .png runs gs.
+IMAGE_FORMATS = ("PNG", "JPEG", "TIFF", "BMP", "WEBP")
 ENGINE_BACKENDS = {"vision": "ocrmac", "rapidocr": "rapidocr"}
 
 
@@ -113,7 +115,7 @@ def convert_with_ocr(
     else:
         from PIL import Image
 
-        with Image.open(path) as source:
+        with Image.open(path, formats=IMAGE_FORMATS) as source:
             for page in image_pages(source, limits, path):
                 image = page.convert("RGB")
                 try:
@@ -125,7 +127,7 @@ def convert_with_ocr(
                 _check(total_chars, limits.max_output_chars, "output", path)
 
     if path.suffix.lower() == ".pdf":
-        output = format_pdf_pages(texts)
+        output = format_pdf_text_pages(texts)
     else:
         markdown = "\n\n".join(text.strip() for text in texts if text.strip()).strip()
         output = markdown + "\n" if markdown else ""

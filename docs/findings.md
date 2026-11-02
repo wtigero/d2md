@@ -94,8 +94,8 @@ That result motivated making pypdfium2 the current default for "I just need the
 text into a model" while keeping explicit `--docling` for "I need the parameter
 tables".
 
-The old prototype exposed this as `d2md --fast`. That option is now a
-deprecated no-op because the route became the default. The route checks its own
+The old prototype exposed this as `d2md --fast`. That option is gone because
+the route became the default. The route checks its own
 output and requires `[ocr]` plus `--ocr` when either problem appears:
 
 | Condition | Test | Why |

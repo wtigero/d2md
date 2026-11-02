@@ -1,6 +1,5 @@
 import io
 import json
-from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -11,11 +10,6 @@ from d2md.errors import ConversionError
 
 
 MARKDOWN = "# Quarterly report\n\nConverted text long enough.\n"
-
-
-@contextmanager
-def passthrough(source, limits):
-    yield source.path
 
 
 def successful_conversion(path, **kwargs):
@@ -34,7 +28,6 @@ def test_stdout_emits_only_markdown_and_does_not_create_output(
     source = tmp_path / "report.txt"
     source.write_text("source content long enough", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", successful_conversion)
 
     assert cli.main([str(source), "--stdout"]) == 0
@@ -67,7 +60,6 @@ def test_stdout_redirects_backend_noise_away_from_markdown(
     """A backend print must not corrupt Markdown consumed by another process."""
     source = tmp_path / "report.txt"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", noisy_conversion)
 
     assert cli.main([str(source), "--stdout"]) == 0
@@ -83,7 +75,6 @@ def test_stdout_preserves_markdown_bytes_when_not_a_terminal(
     """Adding a newline changes Markdown consumed through a pipe."""
     source = tmp_path / "report.txt"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(
         cli,
         "convert",
@@ -106,7 +97,6 @@ def test_stdout_refuses_terminal_control_sequences_on_a_tty(tmp_path, monkeypatc
     terminal = io.StringIO()
     terminal.isatty = lambda: True
     errors = io.StringIO()
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(
         cli,
         "convert",
@@ -163,7 +153,6 @@ def test_json_success_is_one_machine_readable_document(
     source = tmp_path / "report.txt"
     outdir = tmp_path / "converted"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", successful_conversion)
 
     assert cli.main([str(source), "--json", "-o", str(outdir)]) == 0
@@ -216,7 +205,6 @@ def test_json_redirects_backend_noise_away_from_report(
     """A backend print must not make the JSON document unparsable."""
     source = tmp_path / "report.txt"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", noisy_conversion)
 
     assert cli.main([str(source), "--json", "-o", str(tmp_path / "out")]) == 0
@@ -230,7 +218,6 @@ def test_json_conversion_failure_stays_structured(tmp_path, monkeypatch, capsys)
     """Printing a backend failure outside JSON would break automation."""
     source = tmp_path / "broken.txt"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
 
     def fail_conversion(path, **kwargs):
         raise ConversionError("backend rejected the document")
@@ -256,7 +243,6 @@ def test_json_wire_escapes_terminal_control_characters(
     """A crafted filename must not inject bidi controls into terminal output."""
     source = tmp_path / "quarterly\u202ereport.txt"
     source.write_text("source content long enough", encoding="utf-8")
-    monkeypatch.setattr(cli, "_snapshot_input", passthrough)
     monkeypatch.setattr(cli, "convert", successful_conversion)
 
     assert cli.main([str(source), "--json", "-o", str(tmp_path / "out")]) == 0
@@ -327,3 +313,24 @@ def test_capabilities_json_succeeds_with_or_without_optional_engines(
             'uv tool install --force "d2md[docling]"'
         ),
     }
+
+
+def test_same_output_name_fails_the_later_input_instead_of_replacing_it(
+    tmp_path, capsys
+):
+    first = tmp_path / "a" / "same.txt"
+    second = tmp_path / "b" / "SAME.txt"
+    first.parent.mkdir()
+    second.parent.mkdir()
+    first.write_text("first document body", encoding="utf-8")
+    second.write_text("second document body", encoding="utf-8")
+    outdir = tmp_path / "out"
+
+    for options in ([], ["--force"]):
+        assert cli.main([str(first), str(second), "-o", str(outdir), *options]) == 1
+        output = capsys.readouterr().out
+        assert "1 failed" in output
+        assert "already used by same.txt" in output
+        assert (outdir / "same.md").read_text(encoding="utf-8") == (
+            "first document body"
+        )

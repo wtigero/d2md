@@ -810,10 +810,17 @@ def test_empty_output_is_an_error_not_a_success(tmp_path):
         convert(empty)
 
 
-def test_short_output_is_an_error(tmp_path):
+def test_short_plain_text_converts(tmp_path):
+    note = tmp_path / "note.txt"
+    note.write_text("hello world")
+
+    assert convert(note).markdown == "hello world"
+
+
+def test_empty_plain_text_is_an_error(tmp_path):
     tiny = tmp_path / "tiny.txt"
-    tiny.write_text("hello")
-    with pytest.raises(ConversionError):
+    tiny.write_text(" \n")
+    with pytest.raises(ConversionError, match="tiny.txt is empty"):
         convert(tiny)
 
 

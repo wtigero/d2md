@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Iterator
-from contextlib import contextmanager, nullcontext, redirect_stdout
+from contextlib import nullcontext, redirect_stdout
 from dataclasses import dataclass
 import errno
 import json
@@ -10,7 +10,6 @@ import logging
 import os
 import stat
 import sys
-import tempfile
 import time
 import unicodedata
 import uuid
@@ -35,6 +34,9 @@ from .convert import (  # noqa: E402
     UNLIMITED_LIMITS,
     ConversionError,
     ConversionLimits,
+    _file_identity,
+    _is_link_or_reparse,
+    _lexical_absolute,
     convert,
 )
 
@@ -106,14 +108,6 @@ def _stdout_isatty() -> bool:
         return sys.stdout.isatty()
     except (AttributeError, OSError):
         return False
-
-
-def _restore_source_name(
-    error: ConversionError, snapshot: Path, source: Path
-) -> ConversionError:
-    """Avoid exposing a transient snapshot filename in CLI diagnostics."""
-    message = str(error).replace(str(snapshot), source.name)
-    return ConversionError(message.replace(snapshot.name, source.name))
 
 
 def _append_collected(
@@ -236,16 +230,6 @@ def collect(
     return files, failures
 
 
-def _file_identity(details: os.stat_result) -> tuple[int, int]:
-    return details.st_dev, details.st_ino
-
-
-def _is_link_or_reparse(details: os.stat_result) -> bool:
-    reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
-    attributes = getattr(details, "st_file_attributes", 0)
-    return stat.S_ISLNK(details.st_mode) or bool(attributes & reparse_flag)
-
-
 def _path_chain(path: Path) -> Iterator[Path]:
     absolute = _lexical_absolute(path)
     current = Path(absolute.anchor)
@@ -254,14 +238,12 @@ def _path_chain(path: Path) -> Iterator[Path]:
         yield current
 
 
-def _assert_no_link_components(path: Path, allow_missing: bool = False) -> None:
+def _assert_no_link_components(path: Path) -> None:
     """Reject symlinks and Windows junction/reparse points in a full path."""
     for component in _path_chain(path):
         try:
             details = component.lstat()
         except FileNotFoundError:
-            if allow_missing:
-                return
             raise ConversionError(f"path component does not exist: {component}")
         except OSError as exc:
             raise ConversionError(f"cannot inspect path safely: {component}: {exc}") from exc
@@ -317,177 +299,6 @@ def _describe_output_directory_failure(
     if not stat.S_ISDIR(details.st_mode):
         return f"output path is not a directory: {component} in {path}"
     return f"cannot open output directory safely: {path}: {exc}"
-
-
-def _lexical_absolute(path: Path) -> Path:
-    """Make a path absolute without resolving any symbolic links."""
-    return Path(os.path.abspath(os.fspath(path)))
-
-
-def _open_input_file(item: CollectedInput) -> int:
-    """Open an input through no-follow descriptors, component by component."""
-    if not _HAS_SECURE_DIR_FD:
-        return _open_input_file_portable(item)
-
-    absolute_path = _lexical_absolute(item.path)
-    if item.root is not None:
-        root = _lexical_absolute(item.root)
-        try:
-            absolute_path.relative_to(root)
-        except ValueError as exc:
-            raise ConversionError(f"input escaped its directory root: {item.path}") from exc
-
-    components = absolute_path.parts[1:]
-    if not components or any(part in {"", ".", ".."} for part in components):
-        raise ConversionError(f"unsafe input path: {item.path}")
-
-    directory_descriptor = os.open("/", _secure_directory_flags())
-    try:
-        for component in components[:-1]:
-            try:
-                next_descriptor = os.open(
-                    component,
-                    _secure_directory_flags(),
-                    dir_fd=directory_descriptor,
-                )
-            except OSError as exc:
-                raise ConversionError(
-                    f"cannot open directory input safely: {item.path}: {exc}"
-                ) from exc
-            os.close(directory_descriptor)
-            directory_descriptor = next_descriptor
-
-        try:
-            descriptor = os.open(
-                components[-1],
-                os.O_RDONLY
-                | getattr(os, "O_NOFOLLOW", 0)
-                | getattr(os, "O_NONBLOCK", 0),
-                dir_fd=directory_descriptor,
-            )
-        except OSError as exc:
-            raise ConversionError(
-                f"cannot open directory input safely: {item.path}: {exc}"
-            ) from exc
-    finally:
-        os.close(directory_descriptor)
-
-    try:
-        opened = os.fstat(descriptor)
-        if not stat.S_ISREG(opened.st_mode):
-            raise ConversionError(f"directory input must be a regular file: {item.path}")
-        if _file_identity(opened) != item.identity:
-            raise ConversionError(
-                f"input changed after it was collected: {item.path}"
-            )
-    except Exception:
-        os.close(descriptor)
-        raise
-    return descriptor
-
-
-def _open_input_file_portable(item: CollectedInput) -> int:
-    """Open a regular input safely on Windows and other no-dir-fd platforms.
-
-    Component checks reject Windows junctions/reparse points. Comparing the
-    pre-open pathname identity with the opened descriptor catches replacement
-    of the final component between inspection and use.
-    """
-    absolute_path = _lexical_absolute(item.path)
-    if item.root is not None:
-        root = _lexical_absolute(item.root)
-        try:
-            absolute_path.relative_to(root)
-        except ValueError as exc:
-            raise ConversionError(f"input escaped its directory root: {item.path}") from exc
-
-    _assert_no_link_components(absolute_path)
-    try:
-        before = absolute_path.lstat()
-    except OSError as exc:
-        raise ConversionError(f"cannot inspect input safely: {item.path}: {exc}") from exc
-    if _is_link_or_reparse(before) or not stat.S_ISREG(before.st_mode):
-        raise ConversionError(f"input must be a regular file: {item.path}")
-
-    try:
-        descriptor = os.open(
-            absolute_path, os.O_RDONLY | getattr(os, "O_BINARY", 0)
-        )
-    except OSError as exc:
-        raise ConversionError(f"cannot open input safely: {item.path}: {exc}") from exc
-
-    try:
-        opened = os.fstat(descriptor)
-        _assert_no_link_components(absolute_path)
-        if (
-            not stat.S_ISREG(opened.st_mode)
-            or _file_identity(opened) != _file_identity(before)
-        ):
-            raise ConversionError(f"input changed while it was being opened: {item.path}")
-        if _file_identity(opened) != item.identity:
-            raise ConversionError(
-                f"input changed after it was collected: {item.path}"
-            )
-    except Exception:
-        os.close(descriptor)
-        raise
-    return descriptor
-
-
-@contextmanager
-def _snapshot_input(item: CollectedInput, limits: ConversionLimits) -> Iterator[Path]:
-    """Pass heavy backends a bounded private snapshot of every input.
-
-    The snapshot removes the check/use race for direct paths as well as files
-    discovered recursively in a directory.  Backends only ever receive the
-    private regular file, never a caller-controlled pathname.
-    """
-    descriptor = _open_input_file(item)
-    snapshot: Path | None = None
-    try:
-        try:
-            size = os.fstat(descriptor).st_size
-            if limits.max_input_bytes is not None and size > limits.max_input_bytes:
-                raise ConversionError(
-                    f"input limit exceeded: {item.path.name} is larger than "
-                    f"{limits.max_input_bytes:,} bytes"
-                )
-
-            with tempfile.NamedTemporaryFile(
-                prefix="d2md-input-", suffix=item.path.suffix, delete=False
-            ) as copy:
-                # Normalise macOS's /var temporary-directory alias before
-                # handing this private snapshot to the public converter,
-                # which correctly rejects caller-controlled link components.
-                snapshot = Path(copy.name).resolve(strict=True)
-                copied = 0
-                while chunk := os.read(descriptor, 1024 * 1024):
-                    copied += len(chunk)
-                    if (
-                        limits.max_input_bytes is not None
-                        and copied > limits.max_input_bytes
-                    ):
-                        raise ConversionError(
-                            f"input limit exceeded: {item.path.name} is larger than "
-                            f"{limits.max_input_bytes:,} bytes"
-                        )
-                    copy.write(chunk)
-        except ConversionError:
-            raise
-        except OSError as exc:
-            raise ConversionError(
-                f"cannot read directory input safely: {item.path}: {exc}"
-            ) from exc
-
-        assert snapshot is not None
-        yield snapshot
-    finally:
-        os.close(descriptor)
-        if snapshot is not None:
-            try:
-                snapshot.unlink(missing_ok=True)
-            except OSError:
-                pass
 
 
 def _open_output_directory(path: Path) -> OutputDirectory:
@@ -635,6 +446,33 @@ def _safe_output_filename(filename: str) -> None:
         raise ConversionError(f"unsafe output filename: {filename!r}")
 
 
+def _publish_by_reservation(
+    temporary: str | Path, destination: str | Path, dir_fd: int | None = None
+) -> bool:
+    """Publish without overwriting where the filesystem has no hard links.
+
+    exFAT answers link() with ENOTSUP. Claiming the name with O_EXCL keeps the
+    no-overwrite promise, and the rename keeps a reader from seeing half a file.
+    """
+    try:
+        os.close(
+            os.open(
+                destination,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=dir_fd,
+            )
+        )
+    except FileExistsError:
+        return False
+    try:
+        os.replace(temporary, destination, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+    except OSError:
+        os.unlink(destination, dir_fd=dir_fd)
+        raise
+    return True
+
+
 def _write_output(
     output: OutputDirectory, filename: str, markdown: str, force: bool
 ) -> bool:
@@ -681,6 +519,12 @@ def _write_output(
             )
         except FileExistsError:
             return False
+        except OSError:
+            published = _publish_by_reservation(
+                temporary_name, filename, directory_descriptor
+            )
+            temporary_exists = not published
+            return published
         os.unlink(temporary_name, dir_fd=directory_descriptor)
         temporary_exists = False
         return True
@@ -733,6 +577,10 @@ def _write_output_portable(
                 os.link(temporary, destination)
             except FileExistsError:
                 return False
+        except OSError:
+            published = _publish_by_reservation(temporary, destination)
+            temporary_exists = not published
+            return published
         temporary.unlink()
         temporary_exists = False
         return True
@@ -848,7 +696,6 @@ def _run_payload(
     skipped: int = 0,
     results: list[dict[str, object]] | None = None,
     errors: list[tuple[Path | None, str]] | None = None,
-    notices: list[str] | None = None,
 ) -> dict[str, object]:
     """Build the stable machine-readable envelope for one CLI invocation."""
     error_rows = [
@@ -871,7 +718,7 @@ def _run_payload(
         },
         "results": results or [],
         "errors": error_rows,
-        "warnings": notices or [],
+        "warnings": [],
     }
 
 
@@ -943,13 +790,6 @@ def main(argv: list[str] | None = None) -> int:
         help="write one machine-readable run report to standard output",
     )
     ap.add_argument(
-        "--fast",
-        action="store_const",
-        const=True,
-        default=None,
-        help=argparse.SUPPRESS,
-    )
-    ap.add_argument(
         "--ocr",
         action="store_true",
         help="OCR scanned PDFs and images",
@@ -1001,15 +841,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.stdout and (args.force or args.outdir is not None):
         ap.error("--stdout does not write output files; remove --force and --outdir")
 
-    notices: list[str] = []
-
     def fail(message: str, code: int, source: Path | None = None) -> int:
         if args.json_output:
             _print_json(
                 _run_payload(
                     args,
                     errors=[(source, message)],
-                    notices=notices,
                 )
             )
         else:
@@ -1050,15 +887,6 @@ def main(argv: list[str] | None = None) -> int:
                 )
             return fail(message, 2)
 
-    if args.fast is not None:
-        message = (
-            "--fast is deprecated; PDF text extraction is now the default"
-        )
-        if args.json_output:
-            notices.append(message)
-        else:
-            print(f"warning: {message}", file=sys.stderr)
-
     try:
         if args.ocr:
             ensure_ocr_available()
@@ -1076,7 +904,7 @@ def main(argv: list[str] | None = None) -> int:
     if not files:
         if args.json_output:
             errors = failures or [(None, "nothing to convert")]
-            _print_json(_run_payload(args, errors=errors, notices=notices))
+            _print_json(_run_payload(args, errors=errors))
         else:
             print("nothing to convert", file=sys.stderr)
             for source, reason in failures:
@@ -1099,13 +927,33 @@ def main(argv: list[str] | None = None) -> int:
 
     done = skipped = 0
     published_output_chars = 0
+    claimed_outputs: dict[str, Path] = {}
     result_rows: list[dict[str, object]] = []
     stdout_markdown = ""
     machine_quiet = args.quiet or args.json_output or args.stdout
     try:
         for index, source in enumerate(files, 1):
             filename = f"{source.path.stem}.md"
+            # macOS and Windows treat these spellings as one output file.
+            output_key = unicodedata.normalize("NFC", filename).casefold()
             if output_directory is not None:
+                claimed_by = claimed_outputs.get(output_key, source.path)
+                if claimed_by != source.path:
+                    message = (
+                        f"output name {filename} is already used by "
+                        f"{claimed_by.name} in this run"
+                    )
+                    failures.append((source.path, message))
+                    if not args.json_output:
+                        print(
+                            f"FAILED  {display_text(message)}"
+                            if args.quiet
+                            else f"[{index}/{len(files)}] "
+                            f"{display_text(source.path.name)} … "
+                            f"FAILED  {display_text(message)}"
+                        )
+                    continue
+
                 try:
                     destination = _destination_status(output_directory, filename)
                 except ConversionError as exc:
@@ -1115,6 +963,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
 
                 if destination == "existing" and not args.force:
+                    claimed_outputs[output_key] = source.path
                     skipped += 1
                     result_rows.append(
                         {
@@ -1152,30 +1001,22 @@ def main(argv: list[str] | None = None) -> int:
                 )
             started = time.time()
             try:
-                with _snapshot_input(source, limits) as input_path:
-                    try:
-                        backend_output = (
-                            redirect_stdout(sys.stderr)
-                            if args.stdout or args.json_output
-                            else nullcontext()
-                        )
-                        with backend_output:
-                            result = convert(
-                                input_path,
-                                fast=args.fast,
-                                lang=args.lang,
-                                limits=limits,
-                                device=args.device,
-                                ocr=args.ocr,
-                                docling=args.docling,
-                                # input_path is a private snapshot; preserve the
-                                # caller's filename in backend and limit errors.
-                                display_name=source.path.name,
-                            )
-                    except ConversionError as error:
-                        raise _restore_source_name(
-                            error, input_path, source.path
-                        ) from error
+                backend_output = (
+                    redirect_stdout(sys.stderr)
+                    if args.stdout or args.json_output
+                    else nullcontext()
+                )
+                with backend_output:
+                    result = convert(
+                        source.path,
+                        lang=args.lang,
+                        limits=limits,
+                        device=args.device,
+                        ocr=args.ocr,
+                        docling=args.docling,
+                        identity=source.identity,
+                        root=source.root,
+                    )
                 prospective_output_chars = published_output_chars + len(
                     result.markdown
                 )
@@ -1197,6 +1038,7 @@ def main(argv: list[str] | None = None) -> int:
                             "refusing to overwrite output created during conversion: "
                             f"{filename}"
                         )
+                    claimed_outputs[output_key] = source.path
                 published_output_chars = prospective_output_chars
             except ConversionError as exc:
                 failures.append((source.path, str(exc)))
@@ -1260,7 +1102,6 @@ def main(argv: list[str] | None = None) -> int:
                 skipped=skipped,
                 results=result_rows,
                 errors=failures,
-                notices=notices,
             )
         )
         return 1 if failures else 0

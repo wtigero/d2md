@@ -1,14 +1,8 @@
-from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
 
 from d2md import cli
-
-
-@contextmanager
-def _passthrough_snapshot(source, limits):
-    yield source.path
 
 
 @pytest.mark.parametrize("device", ("auto", "cpu", "cuda", "mps", "xpu"))
@@ -22,7 +16,6 @@ def test_cli_forwards_each_public_device(tmp_path, monkeypatch, device):
         return SimpleNamespace(markdown="converted output long enough", backend="docling")
 
     monkeypatch.setattr(cli, "convert", fake_convert)
-    monkeypatch.setattr(cli, "_snapshot_input", _passthrough_snapshot)
     monkeypatch.setattr(cli, "ensure_docling_available", lambda: None)
 
     options = [str(source)]
@@ -35,11 +28,11 @@ def test_cli_forwards_each_public_device(tmp_path, monkeypatch, device):
     assert exit_code == 0
     assert seen == [
         {
-            "fast": None,
             "lang": None,
             "limits": cli.DEFAULT_LIMITS,
             "device": device,
-            "display_name": "scan.pdf",
+            "identity": cli._file_identity(source.lstat()),
+            "root": None,
             "ocr": False,
             "docling": device != "auto",
         }
@@ -60,18 +53,17 @@ def test_cli_defaults_to_auto_device(tmp_path, monkeypatch):
             )
         ),
     )
-    monkeypatch.setattr(cli, "_snapshot_input", _passthrough_snapshot)
 
     assert cli.main([str(source), "-o", str(tmp_path / "out")]) == 0
     assert seen == [
         {
-            "fast": None,
             "lang": None,
             "limits": cli.DEFAULT_LIMITS,
             "device": "auto",
             "ocr": False,
             "docling": False,
-            "display_name": "scan.pdf",
+            "identity": cli._file_identity(source.lstat()),
+            "root": None,
         }
     ]
 

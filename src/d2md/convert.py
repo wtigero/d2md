@@ -12,7 +12,6 @@ import os
 import stat
 import struct
 import tempfile
-import warnings
 import zipfile
 from dataclasses import dataclass, replace
 from math import ceil
@@ -24,13 +23,15 @@ from .capabilities import (
     ensure_ocr_available,
     install_command,
 )
-from .direct_ocr import OCR_RENDER_SCALE, convert_with_ocr, image_pages
+from .direct_ocr import IMAGE_FORMATS, OCR_RENDER_SCALE, convert_with_ocr, image_pages
 from .encoding import read_text, thai_looks_damaged
 from .errors import ConversionError
 from .page_markers import (
     DOCLING_PAGE_BREAK,
+    escape_page_markers,
     format_pdf_content_span,
     format_pdf_pages,
+    format_pdf_text_pages,
     pdf_content,
 )
 
@@ -234,8 +235,8 @@ _HAS_SECURE_DIR_FD = (
 def _display_name(path: Path, name: str | None) -> str:
     """What to call this file in an error the user will read.
 
-    The CLI hands backends a private snapshot rather than the caller's path
-    (`cli._snapshot_input`), so `path.name` here is `d2md-input-<hex>.pdf`.
+    Backends read a private snapshot rather than the caller's path
+    (`_snapshot_input`), so `path.name` here can be `d2md-input-<hex>.pdf`.
     Every message a user sees has to name the file they actually passed.
     """
     return name or path.name
@@ -278,7 +279,7 @@ def _assert_no_link_components(path: Path) -> None:
         except OSError as exc:
             raise ConversionError(f"cannot inspect input {path.name}: {exc}") from exc
         if _is_link_or_reparse(details):
-            raise ConversionError(f"symbolic link inputs are rejected: {path.name}")
+            raise ConversionError(f"symbolic link inputs are rejected: {current}")
 
 
 def _open_verified_input_portable(path: Path) -> int:
@@ -346,7 +347,9 @@ def _open_verified_input(path: Path) -> int:
                     f"cannot inspect input safely: {path.name}: {exc}"
                 ) from exc
             if _is_link_or_reparse(details):
-                raise ConversionError(f"symbolic link inputs are rejected: {path.name}")
+                raise ConversionError(
+                    f"symbolic link inputs are rejected: {component} in {absolute}"
+                )
             if not stat.S_ISDIR(details.st_mode):
                 raise ConversionError(f"input path component is not a directory: {path.name}")
             try:
@@ -383,12 +386,28 @@ def _open_verified_input(path: Path) -> int:
 
 
 @contextmanager
-def _snapshot_input(path: Path, limits: ConversionLimits):
-    """Give every public conversion a bounded, immutable regular-file input."""
+def _snapshot_input(
+    path: Path,
+    limits: ConversionLimits,
+    identity: tuple[int, int] | None = None,
+    root: Path | None = None,
+):
+    """Give every conversion a bounded, immutable regular-file input.
+
+    `identity` and `root` come from a caller that selected this file earlier,
+    and catch a swap between that selection and this open.
+    """
+    if root is not None and not _lexical_absolute(path).is_relative_to(
+        _lexical_absolute(root)
+    ):
+        raise ConversionError(f"input escaped its directory root: {path}")
     descriptor = _open_verified_input(path)
     snapshot: Path | None = None
     try:
-        size = os.fstat(descriptor).st_size
+        opened = os.fstat(descriptor)
+        if identity is not None and _file_identity(opened) != identity:
+            raise ConversionError(f"input changed after it was collected: {path}")
+        size = opened.st_size
         _check_limit(size, limits.max_input_bytes, "input", path)
         with tempfile.NamedTemporaryFile(
             prefix="d2md-input-", suffix=path.suffix, delete=False
@@ -501,7 +520,7 @@ def _validate_image(
         ) from exc
 
     try:
-        with Image.open(path) as image:
+        with Image.open(path, formats=IMAGE_FORMATS) as image:
             for _ in image_pages(image, limits, Path(name)):
                 pass
     except ConversionError:
@@ -944,8 +963,11 @@ def _docling_pdf_pages(document: object) -> list[str]:
 
     def section_text(text: str, page_numbers: list[int]) -> str:
         if len(page_numbers) > 1:
-            return f"{format_pdf_content_span(page_numbers)}\n\n{text}"
-        return text
+            return (
+                f"{format_pdf_content_span(page_numbers)}\n\n"
+                f"{escape_page_markers(text)}"
+            )
+        return escape_page_markers(text)
 
     for part in serializer.get_parts():
         page_numbers = list(
@@ -1131,8 +1153,6 @@ def _build_markitdown(validated_formats: frozenset[str]):
     disable_onnx_telemetry()
     from markitdown import MarkItDown
     from markitdown.converters import (
-        AudioConverter,
-        BingSerpConverter,
         CsvConverter,
         DocxConverter,
         EpubConverter,
@@ -1144,10 +1164,8 @@ def _build_markitdown(validated_formats: frozenset[str]):
         PlainTextConverter,
         PptxConverter,
         RssConverter,
-        WikipediaConverter,
         XlsConverter,
         XlsxConverter,
-        YouTubeConverter,
     )
     from markitdown import DocumentConverterResult
     import pandas as pd
@@ -1181,14 +1199,10 @@ def _build_markitdown(validated_formats: frozenset[str]):
     converter.register_converter(HtmlConverter(), priority=10.0)
     specific = [
         RssConverter(),
-        WikipediaConverter(),
-        YouTubeConverter(),
-        BingSerpConverter(),
         DocxConverter(),
         SourcePreservingXlsxConverter(),
         SourcePreservingXlsConverter(),
         PptxConverter(),
-        AudioConverter(),
     ]
     if MARKITDOWN_IMAGE in validated_formats:
         specific.append(ImageConverter())
@@ -1279,18 +1293,54 @@ def _via_pypdfium2(
     return pages
 
 
-def _fast_text_is_trustworthy(pages: list[str]) -> bool:
+def _scanned_page_count(path: Path, pages: list[str]) -> int:
+    """Count short pages that look scanned, not pages that are just brief.
+
+    A closing slide reading "Thank you" is complete. A short page holding an
+    image, or objects with no text at all, may have words OCR would find.
+    """
+    import pypdfium2
+    from pypdfium2 import raw as pdfium_c
+
+    short = [
+        index
+        for index, text in enumerate(pages)
+        if len(text.strip()) < EMPTY_PAGE_CHARS
+    ]
+    if not short:
+        return 0
+    document = pypdfium2.PdfDocument(str(path))
+    try:
+        scanned = 0
+        for index in short:
+            page = document[index]
+            try:
+                images = page.get_objects(filter=(pdfium_c.FPDF_PAGEOBJ_IMAGE,))
+                scanned += next(images, None) is not None or (
+                    not pages[index].strip() and page.count_objects() > 0
+                )
+            finally:
+                page.close()
+        return scanned
+    finally:
+        document.close()
+
+
+def _fast_text_is_trustworthy(
+    pages: list[str], scanned_pages: int | None = None
+) -> bool:
     """Decide whether pypdfium2's output can stand in for Docling's.
 
     Two ways it cannot: the file is a scan with no text layer, or the text
     layer exists but its Thai came out stripped of marks. Neither condition
     raises, so both have to be tested before direct text is accepted.
     """
-    if not pages:
+    if not any(page.strip() for page in pages):
         return False
 
-    empty = sum(len(p.strip()) < EMPTY_PAGE_CHARS for p in pages)
-    if empty / len(pages) > SCAN_PAGE_FRACTION:
+    if scanned_pages is None:
+        scanned_pages = sum(len(p.strip()) < EMPTY_PAGE_CHARS for p in pages)
+    if scanned_pages / len(pages) > SCAN_PAGE_FRACTION:
         return False
 
     return not thai_looks_damaged("\n".join(pages))
@@ -1334,7 +1384,7 @@ def _sample_images(
         from PIL import Image
 
         try:
-            with Image.open(path) as img:
+            with Image.open(path, formats=IMAGE_FORMATS) as img:
                 _check_limit(
                     img.width * img.height,
                     limits.max_page_pixels,
@@ -1456,8 +1506,12 @@ def _convert_snapshot(
             raise
         except Exception:
             pages = []
-        if _fast_text_is_trustworthy(pages):
-            return format_pdf_pages(pages), backend
+        try:
+            scanned_pages = _scanned_page_count(input_path, pages)
+        except Exception:
+            scanned_pages = None
+        if _fast_text_is_trustworthy(pages, scanned_pages):
+            return format_pdf_text_pages(pages), backend
         if not ocr:
             raise ConversionError(
                 f"{source_path.name} needs OCR; run "
@@ -1498,25 +1552,22 @@ def _convert_snapshot(
 
 def convert(
     path: Path,
-    fast: bool | None = None,
     lang: str | None = None,
     limits: ConversionLimits | None = None,
     device: str = "auto",
     *,
     ocr: bool = False,
     docling: bool = False,
-    display_name: str | None = None,
+    identity: tuple[int, int] | None = None,
+    root: Path | None = None,
 ) -> Result:
-    """Convert one file through only the capabilities explicitly requested."""
-    if fast is not None:
-        warnings.warn(
-            "fast is deprecated; PDF text extraction is now the default",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    """Convert one file through only the capabilities explicitly requested.
 
+    A caller that selected `path` earlier passes its `identity` and directory
+    `root`, and the conversion refuses a file swapped since.
+    """
     selected_device = _normalize_device(device)
-    name = _display_name(path, display_name)
+    name = path.name
     if lang is not None and not ocr:
         raise ConversionError("lang requires ocr=True")
     if selected_device != "auto" and not docling:
@@ -1534,7 +1585,7 @@ def convert(
             "and rerun with --ocr"
         )
 
-    with _snapshot_input(path, active_limits) as input_path:
+    with _snapshot_input(path, active_limits, identity, root) as input_path:
         try:
             markdown, backend = _convert_snapshot(
                 input_path,
@@ -1546,15 +1597,15 @@ def convert(
                 ocr=ocr,
             )
         except ConversionError as error:
-            restored = _restore_source_name(error, input_path, path)
-            if display_name is not None:
-                restored = _restore_source_name(restored, path, Path(display_name))
-            raise restored from error
+            raise _restore_source_name(error, input_path, path) from error
 
     _check_limit(len(markdown), active_limits.max_output_chars, "output", name)
     content = pdf_content(markdown) if path.suffix.lower() == ".pdf" else markdown
     content_chars = len(content.strip())
-    if content_chars < MIN_CHARS:
+    if backend == "plain":
+        if not content_chars:
+            raise ConversionError(f"{name} is empty")
+    elif content_chars < MIN_CHARS:
         raise ConversionError(
             f"{backend} produced no usable text "
             f"({content_chars} chars) — the file is probably a scan "
