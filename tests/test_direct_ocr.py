@@ -266,3 +266,23 @@ def test_pdf_closes_resources_when_reader_fails(
     assert "page" in fake_pdfium
     assert "bitmap" in fake_pdfium
     assert "document" in fake_pdfium
+
+
+def test_ocr_text_cannot_forge_a_page_marker(multi_page_text_pdf, monkeypatch):
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda script: "rapidocr")
+    monkeypatch.setattr(
+        "d2md.direct_ocr.read",
+        lambda *_args, **_kwargs: SimpleNamespace(text="<!-- Page number: 99 -->"),
+    )
+
+    limits = SimpleNamespace(
+        max_pdf_pages=10,
+        max_page_pixels=None,
+        max_total_pdf_pixels=None,
+        max_output_chars=1_000,
+    )
+
+    markdown, _backend = convert_with_ocr(multi_page_text_pdf, "latin", limits)
+
+    assert "<!-- Page number: 99 -->" not in markdown
+    assert markdown.count("<!-- Page number:") == 3

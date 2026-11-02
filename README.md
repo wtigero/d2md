@@ -136,7 +136,11 @@ Second-page content.
 The default text path, direct `--ocr`, and `--docling` PDF routes all emit this
 shape. Page order is unchanged, while RAG loaders and other consumers can split
 on `<!-- Page number: N -->` without showing extra headings in rendered
-Markdown. The markers are part of the Markdown written to files and `--stdout`;
+Markdown. Text inside a PDF cannot produce that exact string, because any
+look-alike is written with `&lt;` instead of `<`. Split before you normalize or
+unescape the text, because those steps can turn a look-alike into a real marker.
+Other input types carry their text through unchanged, so `.txt` and `.md` files
+can contain the same string. The markers are part of the Markdown written to files and `--stdout`;
 in `--json` mode, the JSON report still describes the generated Markdown file
 rather than embedding its contents.
 
@@ -383,12 +387,10 @@ or any other capability.
 | `--version` | print the installed `d2md` version and exit |
 | `--unsafe-unlimited` | disable resource ceilings for trusted inputs only |
 
-The former `--fast` option is still accepted as a hidden, deprecated no-op and
-will be removed in a future minor release. Direct PDF text extraction is now the
-default.
-
-If multiple inputs have the same basename, the first output is kept unless
-`--force` is used. The command exits non-zero if any input fails:
+If two inputs in one run need the same output name, such as `a/same.pdf` and
+`b/same.docx`, the first keeps it and the later input is reported as failed,
+with or without `--force`. Names that differ only in case count as the same. The
+command exits non-zero if any input fails:
 
 ```bash
 d2md ./inbox -o ./markdown || echo "some documents need attention"

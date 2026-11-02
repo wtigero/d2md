@@ -1,3 +1,4 @@
+import errno
 import importlib
 import io
 import os
@@ -161,18 +162,20 @@ def test_cli_rejects_regular_input_replaced_after_collection(
     outdir = tmp_path / "out"
     conversions = 0
 
-    def replace_second_while_converting_first(_path, **_kwargs):
+    def replace_second_while_converting_first(path, **kwargs):
         nonlocal conversions
         conversions += 1
         if conversions == 1:
             os.replace(replacement, selected)
-        return types.SimpleNamespace(markdown=BODY, backend="plain")
+        return convert(path, **kwargs)
 
     monkeypatch.setattr(cli, "convert", replace_second_while_converting_first)
 
     assert cli.main([str(first), str(selected), "-o", str(outdir)]) == 1
-    assert conversions == 1
-    assert (outdir / "first.md").read_text(encoding="utf-8") == BODY
+    assert conversions == 2
+    assert (outdir / "first.md").read_text(encoding="utf-8") == (
+        "first approved document"
+    )
     assert not (outdir / "selected.md").exists()
     assert "input changed after it was collected" in capsys.readouterr().out
 
@@ -189,19 +192,22 @@ def test_portable_cli_rejects_regular_input_replaced_after_collection(
     outdir = tmp_path / "out"
     conversions = 0
 
-    def replace_second_while_converting_first(_path, **_kwargs):
+    def replace_second_while_converting_first(path, **kwargs):
         nonlocal conversions
         conversions += 1
         if conversions == 1:
             os.replace(replacement, selected)
-        return types.SimpleNamespace(markdown=BODY, backend="plain")
+        return convert(path, **kwargs)
 
     monkeypatch.setattr(cli, "_HAS_SECURE_DIR_FD", False)
+    monkeypatch.setattr(convert_module, "_HAS_SECURE_DIR_FD", False)
     monkeypatch.setattr(cli, "convert", replace_second_while_converting_first)
 
     assert cli.main([str(first), str(selected), "-o", str(outdir)]) == 1
-    assert conversions == 1
-    assert (outdir / "first.md").read_text(encoding="utf-8") == BODY
+    assert conversions == 2
+    assert (outdir / "first.md").read_text(encoding="utf-8") == (
+        "first approved document"
+    )
     assert not (outdir / "selected.md").exists()
     assert "input changed after it was collected" in capsys.readouterr().out
 
@@ -213,6 +219,7 @@ def test_regular_conversion_works_without_posix_directory_descriptors(
     source.write_text(BODY, encoding="utf-8")
     outdir = tmp_path / "out"
     monkeypatch.setattr(cli, "_HAS_SECURE_DIR_FD", False)
+    monkeypatch.setattr(convert_module, "_HAS_SECURE_DIR_FD", False)
 
     assert cli.main([str(source), "-o", str(outdir)]) == 0
     assert (outdir / "portable.md").read_text(encoding="utf-8") == BODY
@@ -432,23 +439,6 @@ def test_public_convert_reports_the_original_name_after_snapshot_failure(
 
     assert "customer-report.txt" in str(error.value)
     assert "d2md-input-" not in str(error.value)
-
-
-def test_cli_reports_the_original_name_after_its_snapshot_failure(
-    tmp_path, monkeypatch, capsys
-):
-    source = tmp_path / "customer-report.txt"
-    source.write_text(BODY, encoding="utf-8")
-
-    def reject(snapshot, **_kwargs):
-        raise ConversionError(f"fixture rejected: {snapshot.name}")
-
-    monkeypatch.setattr(cli, "convert", reject)
-
-    assert cli.main([str(source), "-o", str(tmp_path / "out")]) == 1
-    output = capsys.readouterr().out
-    assert "customer-report.txt" in output
-    assert "d2md-input-" not in output
 
 
 def test_collection_enforces_a_configurable_file_limit(tmp_path):
@@ -1397,3 +1387,156 @@ def test_archive_validation_rejects_central_directory_record_past_its_bounds(
 
     with pytest.raises(ConversionError, match="cannot inspect document archive safely"):
         convert(source)
+
+
+def test_convert_rejects_a_file_outside_its_collected_root(tmp_path):
+    root = tmp_path / "inbox"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text(BODY, encoding="utf-8")
+
+    with pytest.raises(ConversionError, match="escaped its directory root"):
+        convert(outside, root=root)
+
+
+def test_cli_names_the_link_that_stopped_an_input(tmp_path, capsys):
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "report.txt").write_text(BODY, encoding="utf-8")
+    alias = tmp_path / "alias"
+    make_symlink_or_skip(alias, real)
+
+    assert cli.main([str(alias / "report.txt"), "-o", str(tmp_path / "out")]) == 1
+
+    captured = capsys.readouterr()
+    output = captured.out + captured.err
+    assert "alias" in output
+    assert "symbolic link" in output
+    assert "Not a directory" not in output
+
+
+@pytest.mark.parametrize("portable", [False, True])
+def test_output_without_hard_links_converts_and_never_overwrites(
+    tmp_path, monkeypatch, capsys, portable
+):
+    """exFAT answers link() with ENOTSUP, which failed every no-force write."""
+
+    def unsupported(*_args, **_kwargs):
+        raise OSError(errno.ENOTSUP, "Operation not supported")
+
+    source = tmp_path / "report.txt"
+    source.write_text(BODY, encoding="utf-8")
+    outdir = tmp_path / "out"
+    outdir.mkdir()
+    monkeypatch.setattr(cli.os, "link", unsupported)
+    if portable:
+        monkeypatch.setattr(cli, "_HAS_SECURE_DIR_FD", False)
+
+    assert cli.main([str(source), "-o", str(outdir)]) == 0
+    destination = outdir / "report.md"
+    assert destination.read_text(encoding="utf-8") == BODY
+    assert [entry.name for entry in outdir.iterdir()] == ["report.md"]
+
+    destination.write_text("kept", encoding="utf-8")
+    output = cli.OutputDirectory(
+        path=outdir, descriptor=None, identity=cli._file_identity(outdir.lstat())
+    )
+    if not portable:
+        output = cli._open_output_directory(outdir)
+    try:
+        assert cli._write_output(output, "report.md", BODY, force=False) is False
+    finally:
+        output.close()
+    assert destination.read_text(encoding="utf-8") == "kept"
+    assert [entry.name for entry in outdir.iterdir()] == ["report.md"]
+
+
+@pytest.mark.parametrize("interruption", [OSError("disk gone"), KeyboardInterrupt()])
+def test_failed_reservation_leaves_no_empty_output(tmp_path, monkeypatch, interruption):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+    destination = tmp_path / "report.md"
+
+    def fail(*_args, **_kwargs):
+        raise interruption
+
+    monkeypatch.setattr(cli.os, "replace", fail)
+
+    with pytest.raises(type(interruption)):
+        cli._publish_by_reservation(temporary, destination)
+    assert not destination.exists()
+
+
+def test_interrupt_while_closing_the_reservation_leaves_no_empty_output(
+    tmp_path, monkeypatch
+):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+    destination = tmp_path / "report.md"
+    real_close = cli.os.close
+
+    def interrupted_close(descriptor):
+        real_close(descriptor)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(cli.os, "close", interrupted_close)
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._publish_by_reservation(temporary, destination)
+    monkeypatch.undo()
+    assert not destination.exists()
+
+
+def test_failed_cleanup_does_not_swallow_the_interrupt(tmp_path, monkeypatch):
+    temporary = tmp_path / "pending.tmp"
+    temporary.write_text(BODY, encoding="utf-8")
+
+    def interrupted(*_args, **_kwargs):
+        raise KeyboardInterrupt
+
+    def denied(*_args, **_kwargs):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(cli.os, "replace", interrupted)
+    monkeypatch.setattr(cli.os, "unlink", denied)
+
+    with pytest.raises(KeyboardInterrupt):
+        cli._publish_by_reservation(temporary, tmp_path / "report.md")
+
+
+def test_eps_named_png_is_refused_before_pillow_can_run_ghostscript(tmp_path, monkeypatch):
+    source = tmp_path / "disguised.png"
+    source.write_bytes(b"%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 10 10\n")
+    monkeypatch.setattr(convert_module, "ensure_ocr_available", lambda: None)
+
+    with pytest.raises(ConversionError, match="cannot inspect image safely"):
+        convert(source, ocr=True)
+
+
+def _gif_named_png(path):
+    """A format Pillow reads unaided, so a missing restriction shows up."""
+    from PIL import Image
+
+    Image.new("L", (8, 8)).save(path, format="GIF")
+    return path
+
+
+def test_direct_ocr_opens_only_the_accepted_formats(tmp_path, monkeypatch):
+    from PIL import UnidentifiedImageError
+
+    from d2md.direct_ocr import convert_with_ocr
+
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda _script: "rapidocr")
+
+    with pytest.raises(UnidentifiedImageError):
+        convert_with_ocr(
+            _gif_named_png(tmp_path / "disguised.png"),
+            "latin",
+            convert_module.DEFAULT_LIMITS,
+        )
+
+
+def test_script_sampling_opens_only_the_accepted_formats(tmp_path):
+    source = _gif_named_png(tmp_path / "disguised.png")
+
+    assert list(convert_module._sample_images(source)) == []

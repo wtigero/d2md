@@ -1,6 +1,5 @@
 """Regression tests for option-shaped filesystem operands."""
 
-from contextlib import contextmanager
 import errno
 from pathlib import Path
 from types import SimpleNamespace
@@ -51,11 +50,6 @@ def _assert_safe_operand_guidance(diagnostic: str) -> None:
     assert "prefix the path with './'" in lowered
 
 
-@contextmanager
-def _passthrough_snapshot(source, limits):
-    yield source.path
-
-
 def test_privileged_cli_options_cannot_be_abbreviated(capsys):
     """``--uns`` must not silently enable the unlimited resource profile."""
     with pytest.raises(SystemExit) as raised:
@@ -89,7 +83,6 @@ def test_explicit_double_dash_accepts_option_shaped_path_as_operand(
     source.write_text("source content long enough", encoding="utf-8")
     seen: list[Path] = []
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "_snapshot_input", _passthrough_snapshot)
     monkeypatch.setattr(
         cli,
         "convert",
@@ -118,7 +111,6 @@ def test_ordinary_and_dot_slash_paths_remain_compatible(
     source = tmp_path / filename
     source.write_text("source content long enough", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(cli, "_snapshot_input", _passthrough_snapshot)
     monkeypatch.setattr(
         cli,
         "convert",

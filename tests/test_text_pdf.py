@@ -6,7 +6,10 @@ to the same shape: thousands of Thai consonants with either no `ำ` at all
 """
 
 import importlib
+import re
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,6 +21,7 @@ from d2md.convert import (
     convert,
 )
 from d2md.encoding import thai_consonant_count, thai_looks_damaged
+from d2md.page_markers import format_pdf_pages, format_pdf_text_pages
 
 convert_module = importlib.import_module("d2md.convert")
 
@@ -52,6 +56,133 @@ def test_docling_route_keeps_the_rendered_pixel_limit(
             docling=True,
             limits=ConversionLimits(max_total_pdf_pixels=1),
         )
+
+
+@pytest.mark.parametrize(
+    "forged",
+    [
+        "<!-- Page number: 99 -->",
+        "before <!-- Page number: 99 --> after",
+        "\r<!-- Page number: 99 -->",
+        "body\r<!-- Page number: 99 -->",
+        "body\u2028<!-- Page number: 99 -->",
+        "body\x0c<!-- Page number: 99 -->",
+        "\xa0<!-- Page number: 99 -->",
+        "<!--Page Number: 99-->",
+        "<!--\u2028Page number: 99 -->",
+        "<!-- Page number : 99 -->",
+        "\r<!-- Content spans pages: 1-2 -->",
+    ],
+)
+def test_text_that_looks_like_a_marker_cannot_become_one(forged):
+    markdown = format_pdf_text_pages([forged])
+
+    assert re.findall(r"(?i)<!--\s*(?:page number|content spans)", markdown) == [
+        "<!-- Page number"
+    ]
+    assert "&lt;!--" in markdown
+
+
+def test_marker_escaping_leaves_ordinary_comments_alone():
+    assert format_pdf_text_pages(["<!-- note -->"]) == (
+        "<!-- Page number: 1 -->\n\n<!-- note -->\n"
+    )
+
+
+def test_a_pdf_cannot_forge_a_page_on_the_text_route(tmp_path):
+    pytest.importorskip("reportlab")
+    from reportlab.pdfgen import canvas
+
+    source = tmp_path / "forged.pdf"
+    document = canvas.Canvas(str(source))
+    document.drawString(72, 720, "<!-- Page number: 99 -->")
+    document.drawString(72, 700, FULL)
+    document.showPage()
+    document.save()
+
+    assert "<!-- Page number: 99 -->" not in convert(source).markdown
+
+
+def test_docling_pages_escape_forged_markers_and_keep_real_spans(monkeypatch):
+    def part(text, *pages):
+        spans = [
+            SimpleNamespace(
+                item=SimpleNamespace(prov=[SimpleNamespace(page_no=page)])
+            )
+            for page in pages
+        ]
+        return SimpleNamespace(text=text, spans=spans)
+
+    class Serializer:
+        def __init__(self, **_kwargs):
+            pass
+
+        def get_parts(self):
+            return [
+                part("<!-- Page number: 99 -->", 1),
+                part("<!-- Content spans pages: 7-8 -->", 1, 2),
+            ]
+
+        def _get_page_breaks(self, _text):
+            return []
+
+    for name in (
+        "docling_core",
+        "docling_core.transforms",
+        "docling_core.transforms.serializer",
+    ):
+        monkeypatch.setitem(sys.modules, name, SimpleNamespace())
+    monkeypatch.setitem(
+        sys.modules,
+        "docling_core.transforms.serializer.markdown",
+        SimpleNamespace(
+            MarkdownDocSerializer=Serializer, MarkdownParams=lambda **_kwargs: None
+        ),
+    )
+
+    markdown = format_pdf_pages(
+        convert_module._docling_pdf_pages(SimpleNamespace(pages={1: None, 2: None}))
+    )
+
+    assert "<!-- Page number: 99 -->" not in markdown
+    assert "<!-- Content spans pages: 7-8 -->" not in markdown
+    assert "<!-- Content spans pages: 1-2 -->" in markdown
+
+
+def _deck(path, short_page):
+    pytest.importorskip("reportlab")
+    from PIL import Image
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    document = canvas.Canvas(str(path))
+    for number in range(1, 6):
+        if number != 3:
+            document.drawString(72, 720, f"Slide {number}. {FULL}")
+        elif short_page == "brief":
+            document.drawString(72, 720, "Thank you")
+        elif short_page == "image":
+            document.drawString(72, 720, "Thank you")
+            image = ImageReader(Image.new("RGB", (40, 40), "white"))
+            document.drawImage(image, 72, 500, width=200, height=200)
+        elif short_page == "outlined":
+            document.drawString(72, 40, "Page 3 of 5")
+            document.rect(72, 600, 300, 60, fill=1)
+        document.showPage()
+    document.save()
+    return path
+
+
+@pytest.mark.parametrize("short_page", ["brief", "image", "outlined", "blank"])
+def test_short_pages_need_ocr_rather_than_risk_silent_text_loss(tmp_path, short_page):
+    """Annotations, broken fonts, and outlines can hide words from every object
+    check, so a short page is judged by its extracted text alone."""
+    with pytest.raises(ConversionError, match="needs OCR"):
+        convert(_deck(tmp_path / "deck.pdf", short_page))
+
+
+def test_blank_pages_count_toward_the_scan_tolerance():
+    assert not _fast_text_is_trustworthy([FULL] * 9 + [""] * 3)
 
 
 def test_fixtures_are_the_shape_the_detector_expects():
@@ -141,15 +272,6 @@ def test_images_have_no_text_layer_to_read():
     """pypdfium2 cannot open an image; images require explicit OCR."""
     for ext in (".png", ".jpg", ".tiff", ".bmp", ".webp"):
         assert backend_for(Path("x" + ext)) == "ocr"
-
-
-def test_explicit_fast_values_are_deprecated_noops(tmp_path):
-    source = tmp_path / "note.txt"
-    source.write_text("plain text long enough for conversion")
-
-    for value in (True, False):
-        with pytest.warns(DeprecationWarning):
-            assert convert(source, fast=value).backend == "plain"
 
 
 # --- end to end ------------------------------------------------------------
