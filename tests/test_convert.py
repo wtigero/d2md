@@ -998,3 +998,49 @@ def test_legacy_thai_text_file_survives(tmp_path):
     body = "ทดสอบภาษาไทย น้ำจำกัด ระบบอ่านไฟล์ทดสอบ"
     src.write_bytes(body.encode("cp874"))
     assert convert(src).markdown == body
+
+
+def test_thai_windows_874_html_converts_to_thai(tmp_path):
+    """MarkItDown's own guess read this exact page as Chinese."""
+    thai = "สวัสดีครับ นี่คือเอกสารทดสอบภาษาไทย ราคาสินค้ารวมภาษีมูลค่าเพิ่มแล้ว "
+    source = tmp_path / "page.html"
+    source.write_bytes(
+        (
+            '<html><head><title>t</title><meta http-equiv="Content-Type" '
+            'content="text/html; charset=windows-874"></head>'
+            f"<body><h1>{thai}</h1><p>{thai * 3}</p></body></html>"
+        ).encode("cp874")
+    )
+
+    assert thai in convert(source).markdown
+
+
+def test_a_truncated_image_is_reported_as_unreadable(tmp_path, monkeypatch):
+    import io
+
+    from PIL import Image
+
+    monkeypatch.setattr(
+        importlib.import_module("d2md.convert"), "ensure_ocr_available", lambda: None
+    )
+    monkeypatch.setattr("d2md.direct_ocr.engine_for", lambda _script: "rapidocr")
+    buffer = io.BytesIO()
+    Image.effect_noise((400, 400), 50).convert("RGB").save(buffer, "PNG")
+    source = tmp_path / "broken.png"
+    source.write_bytes(buffer.getvalue()[: len(buffer.getvalue()) // 2])
+
+    with pytest.raises(ConversionError, match="cannot read input") as raised:
+        convert(source, ocr=True, lang="latin")
+    assert "snapshot" not in str(raised.value)
+
+
+def test_script_detection_looks_past_a_blank_first_tiff_page(tmp_path):
+    from PIL import Image
+
+    source = tmp_path / "scan.tiff"
+    Image.new("RGB", (40, 40), "white").save(
+        source, save_all=True, append_images=[Image.new("RGB", (40, 40), "black")]
+    )
+
+    convert_module = importlib.import_module("d2md.convert")
+    assert len(list(convert_module._sample_images(source))) == 2

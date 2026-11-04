@@ -101,11 +101,12 @@ output and requires `[ocr]` plus `--ocr` when either problem appears:
 | Condition | Test | Why |
 |---|---|---|
 | Scanned, whole or in part | more than 10% of pages yield under 20 characters after stripping | there is no text layer to read |
-| Thai text layer damaged | §2's `ำ` test over the whole document | extraction reports success and returns corrupt text |
+| Scanned page with a stamped footer | any page with under 100 characters whose images, mapped through their forms and added up, cover half of it | the readable footer hides the unread scan; a photo cover or full-page figure trips it too |
+| Thai text layer damaged | §2's `ำ` test over the whole document and on each page | extraction reports success and returns corrupt text |
 
 The 10% is a tolerance, not a measurement: it lets a long document carry the
-odd genuinely blank page without requiring OCR, while any real scanned section
-trips it. A false positive asks for OCR unnecessarily; a missed one puts
+odd genuinely blank page without requiring OCR. It does not catch one scanned
+page in ten on its own, which is why the image rule exists. A false positive asks for OCR unnecessarily; a missed one puts
 corrupt Thai in an index, so the threshold is deliberately cautious.
 
 The lightweight route had not been run over the 392-PDF corpus when this

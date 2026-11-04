@@ -94,7 +94,10 @@ d2md ~/Documents -o converted
 ```
 
 Output defaults to `md-out/`. For example, `reports/annual.pdf` becomes
-`md-out/annual.md`.
+`md-out/annual.md`. A directory input keeps its folders, so
+`d2md ~/Documents` writes `~/Documents/2026/plan.pdf` to `md-out/2026/plan.md`.
+Folder scans skip `._name` files that macOS writes on exFAT and network drives,
+and `~$name` Office lock files.
 
 ## Use with AI and automation
 
@@ -219,7 +222,10 @@ uv tool install --force "d2md[ocr]"
 ```
 
 `--ocr` permits OCR for scanned PDFs and images. A healthy PDF with a usable
-text layer still uses direct text extraction; it is not re-OCRed.
+text layer still uses direct text extraction; it is not re-OCRed. A page with
+under 100 characters that is mostly image counts as scanned, so a born-digital
+report with a full-page photo cover or figure, or slides on a full-page
+background, need `--ocr`, and then every page of that PDF is OCRed.
 
 When the script is known, pass `--lang` to avoid extra detection passes:
 
@@ -388,9 +394,12 @@ or any other capability.
 | `--unsafe-unlimited` | disable resource ceilings for trusted inputs only |
 
 If two inputs in one run need the same output name, such as `a/same.pdf` and
-`b/same.docx`, the first keeps it and the later input is reported as failed,
-with or without `--force`. Names that differ only in case count as the same. The
-command exits non-zero if any input fails:
+`a/same.docx`, or two files passed by name from different folders, the first
+keeps it and the later input is reported as failed, with or without `--force`.
+Names that differ only in case count as the same. Once a run reaches its output
+character limit, the remaining inputs are reported without being converted, and
+a rerun without `--force` continues because finished outputs are skipped. The command exits
+non-zero if any input fails:
 
 ```bash
 d2md ./inbox -o ./markdown || echo "some documents need attention"
@@ -447,12 +456,13 @@ controls when a hard boundary is required.
 
 The rendered-pixel ceilings apply only to routes that render. Default PDF text
 extraction reads the text layer, so it is bound by the page and character
-limits instead. The MarkItDown worker stops when its memory passes the ceiling.
-Windows has no such ceiling yet, and Docling workers are not limited because
-their models need far more memory than ordinary documents.
+limits instead. The MarkItDown and PDF text workers stop when their memory
+passes the ceiling. Windows has no such ceiling yet, and Docling workers are not
+limited because their models need far more memory than ordinary documents.
 
-The default MarkItDown and Docling backend job deadline is 30 minutes (1,800
-seconds). Only the explicit trusted-input `--unsafe-unlimited` mode makes that
+The default MarkItDown, PDF text, and Docling job deadline is 30 minutes (1,800
+seconds). Direct `--ocr` still runs in the calling process, so a hostile PDF
+can hold it until the OS or job controls stop it. Only the explicit trusted-input `--unsafe-unlimited` mode makes that
 deadline unlimited; it does not turn the worker into a whole-host sandbox.
 
 Preflight checks use the verified file content as well as its suffix. Renaming a

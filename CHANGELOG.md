@@ -8,6 +8,27 @@ No changes yet.
 
 ## [0.1.3]
 
+- Refuse a PDF whose short pages are mostly image as needing OCR, even under
+  the 10% blank-page tolerance. Images inside forms and scans stored as strips
+  count. A scan with a stamped footer was returned as the footer alone. A
+  report with a full-page photo cover or figure, and slides on a full-page
+  background, now need `--ocr` too, which then OCRs every page.
+- Read PDF text layers in a worker with the 30-minute deadline and 4 GiB
+  ceiling, and read page sizes without loading pages. A 478 KB PDF held the
+  calling process for more than 18 minutes.
+- Decode HTML the way browsers do: BOM first, then the declared charset with
+  browser label rules (`iso-8859-1` reads as windows-1252), then d2md's own
+  Thai-aware rules. A windows-874 page came back as Chinese.
+- Accept CP874 text whose Thai is a small share of the file, so an English
+  invoice with one Thai word keeps it. When Thai would be a small share, Latin-1
+  accents and symbols that CP874 reads as Thai, as in `Größe` or `©`, are not
+  accepted.
+- Check each PDF page for damaged Thai, so one healthy word cannot clear the
+  rest.
+- Keep folders under a directory input, skip `._name` and `~$name` files, and
+  stop converting once the run's output limit is reached.
+- Report a truncated or unreadable image as such, and detect the OCR script
+  from up to three TIFF pages.
 - Remove the `--fast` option, the `fast` and `display_name` arguments of
   `convert()`, and the unused Wikipedia, YouTube, Bing, and audio converters.
   `lang` is now the second positional argument of `convert()`.

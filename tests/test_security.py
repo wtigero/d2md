@@ -1539,4 +1539,5 @@ def test_direct_ocr_opens_only_the_accepted_formats(tmp_path, monkeypatch):
 def test_script_sampling_opens_only_the_accepted_formats(tmp_path):
     source = _gif_named_png(tmp_path / "disguised.png")
 
-    assert list(convert_module._sample_images(source)) == []
+    with pytest.raises(ConversionError, match="cannot read image"):
+        list(convert_module._sample_images(source))

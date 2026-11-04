@@ -202,10 +202,10 @@ def test_docling_route_sends_every_option_to_isolated_worker(tmp_path, monkeypat
     monkeypatch.setattr(convert_module, "script_of", lambda *args, **kwargs: "thai")
     monkeypatch.setattr(
         convert_module,
-        "_via_pypdfium2",
-        lambda *args, **kwargs: [
+        "_read_pdf_text",
+        lambda *args, **kwargs: ([
             "ประกนอบตเหตสวนบคคล ระบบสงสนคาถงบานทวประเทศไทย " * 60
-        ],
+        ], 0),
     )
     monkeypatch.setattr(
         convert_module,

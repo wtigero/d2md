@@ -29,7 +29,7 @@ _RESULT_CHUNK_CHARS = 16 * 1024
 _RESULT_CHUNK_BYTES = 64 * 1024
 _MEMORY_POLL_SECONDS = 0.1
 _MAX_ERROR_CHARS = 512
-_BACKENDS = frozenset({"markitdown", "docling"})
+_BACKENDS = frozenset({"markitdown", "docling", "pdftext"})
 _VALIDATED_FORMATS = frozenset({"pdf", "image"})
 _DEVICES = frozenset({"auto", "cpu", "cuda", "mps", "xpu"})
 _SCRIPTS = frozenset(
@@ -162,6 +162,14 @@ def _write_all_bytes(stream: BinaryIO, frame: bytes) -> None:
             raise OSError("backend protocol pipe made no write progress")
         offset += written
     stream.flush()
+
+
+def _result_char_bound(backend: str, max_output_chars: int | None) -> int | None:
+    """pdftext returns its pages as JSON. An escape is at most six characters,
+    plus a little per page, and the caller checks the decoded text itself."""
+    if backend != "pdftext" or max_output_chars is None:
+        return max_output_chars
+    return 6 * max_output_chars + 1024 * 1024
 
 
 def _is_plain_int(value: object) -> bool:
@@ -488,7 +496,9 @@ class _Worker:
                         response,
                         request_id=request_id,
                         expected_result=result_path,
-                        max_output_chars=max_output_chars,
+                        max_output_chars=_result_char_bound(
+                            self.backend, max_output_chars
+                        ),
                     )
                 except _ProtocolError as exc:
                     self._retire(process)
@@ -902,7 +912,7 @@ def _worker_main(family: str) -> int:
     from ._onnx import prepare_onnx_telemetry_opt_out
 
     prepare_onnx_telemetry_opt_out()
-    from .convert import _via_docling, _via_markitdown
+    from .convert import _via_docling, _via_markitdown, _via_pdftext
 
     while True:
         frame = sys.stdin.buffer.readline(MAX_FRAME_BYTES + 1)
@@ -936,6 +946,8 @@ def _worker_main(family: str) -> int:
                     markdown = _via_markitdown(
                         values["path"], values["validated_formats"]
                     )
+                elif family == "pdftext":
+                    markdown = _via_pdftext(values["path"], values["max_output_chars"])
                 else:
                     markdown = _via_docling(
                         values["path"],
@@ -952,7 +964,13 @@ def _worker_main(family: str) -> int:
                 raise TypeError("backend returned a non-text result")
             char_count = len(markdown)
             max_output_chars = values["max_output_chars"]
-            if max_output_chars is not None and char_count > max_output_chars:
+            # pdftext returns JSON, whose escapes are not output; it checked
+            # the extracted characters itself.
+            if (
+                family != "pdftext"
+                and max_output_chars is not None
+                and char_count > max_output_chars
+            ):
                 _send(
                     protocol,
                     {
