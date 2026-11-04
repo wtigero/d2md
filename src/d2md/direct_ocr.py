@@ -27,11 +27,13 @@ def page_pixels(page, scale: float = OCR_RENDER_SCALE) -> int:
     return ceil(width * scale) * ceil(height * scale)
 
 
-def _check(value: int, limit: int | None, label: str, path: Path) -> None:
+def check_limit(
+    value: int | float, limit: int | None, label: str, name: str | Path
+) -> None:
     if limit is not None and value > limit:
+        display = name.name if isinstance(name, Path) else name
         raise ConversionError(
-            f"{label} limit exceeded: {path.name} has {value:,}; "
-            f"maximum is {limit:,}"
+            f"{label} limit exceeded: {display} has {value:,}; maximum is {limit:,}"
         )
 
 
@@ -46,11 +48,11 @@ def image_pages(image, limits: OcrLimits, path: Path):
 
     total_pixels = 0
     for number, page in enumerate(pages, 1):
-        _check(number, limits.max_pdf_pages, "image page", path)
+        check_limit(number, limits.max_pdf_pages, "image page", path)
         pixels = page.width * page.height
-        _check(pixels, limits.max_page_pixels, "image pixel", path)
+        check_limit(pixels, limits.max_page_pixels, "image pixel", path)
         total_pixels += pixels
-        _check(total_pixels, limits.max_total_pdf_pixels, "total image pixel", path)
+        check_limit(total_pixels, limits.max_total_pdf_pixels, "total image pixel", path)
         yield page
 
 
@@ -66,20 +68,20 @@ def convert_with_ocr(
 
         document = pypdfium2.PdfDocument(str(path))
         try:
-            _check(len(document), limits.max_pdf_pages, "PDF page", path)
+            check_limit(len(document), limits.max_pdf_pages, "PDF page", path)
             total_pixels = 0
             for index in range(len(document)):
                 page = document[index]
                 try:
                     pixels = page_pixels(page)
-                    _check(
+                    check_limit(
                         pixels,
                         limits.max_page_pixels,
                         "rendered page pixel",
                         path,
                     )
                     total_pixels += pixels
-                    _check(
+                    check_limit(
                         total_pixels,
                         limits.max_total_pdf_pixels,
                         "total PDF rendered pixel",
@@ -102,7 +104,7 @@ def convert_with_ocr(
                         bitmap.close()
                     texts.append(text)
                     total_chars += len(text)
-                    _check(
+                    check_limit(
                         total_chars,
                         limits.max_output_chars,
                         "output",
@@ -124,12 +126,12 @@ def convert_with_ocr(
                     image.close()
                 texts.append(text)
                 total_chars += len(text)
-                _check(total_chars, limits.max_output_chars, "output", path)
+                check_limit(total_chars, limits.max_output_chars, "output", path)
 
     if path.suffix.lower() == ".pdf":
         output = format_pdf_text_pages(texts)
     else:
         markdown = "\n\n".join(text.strip() for text in texts if text.strip()).strip()
         output = markdown + "\n" if markdown else ""
-    _check(len(output), limits.max_output_chars, "output", path)
+    check_limit(len(output), limits.max_output_chars, "output", path)
     return output, ENGINE_BACKENDS[engine]

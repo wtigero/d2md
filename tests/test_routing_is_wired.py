@@ -1,6 +1,7 @@
 """Integration tests for explicit text, OCR, and Docling routing."""
 
 import importlib
+import json
 
 import pytest
 
@@ -68,7 +69,7 @@ def test_scan_without_ocr_names_install_and_flag(tmp_path, monkeypatch):
         convert_module, "_validate_input", lambda *args: frozenset()
     )
     monkeypatch.setattr(
-        convert_module, "_via_pypdfium2", lambda *args, **kwargs: [""]
+        convert_module, "_read_pdf_text", lambda *args, **kwargs: ([""], 0)
     )
 
     with pytest.raises(ConversionError, match=r"d2md\[ocr\].*--ocr"):
@@ -81,8 +82,8 @@ def test_installed_extras_do_not_change_default_pdf(tmp_path, monkeypatch):
     monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
     monkeypatch.setattr(
         convert_module,
-        "_via_pypdfium2",
-        lambda *args, **kwargs: ["x" * 40],
+        "_read_pdf_text",
+        lambda *args, **kwargs: (["x" * 40], 0),
     )
     monkeypatch.setattr(
         convert_module,
@@ -100,8 +101,8 @@ def test_healthy_pdf_with_ocr_still_skips_ocr(tmp_path, monkeypatch):
     monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
     monkeypatch.setattr(
         convert_module,
-        "_via_pypdfium2",
-        lambda *args, **kwargs: ["x" * 40],
+        "_read_pdf_text",
+        lambda *args, **kwargs: (["x" * 40], 0),
     )
     monkeypatch.setattr(
         convert_module,
@@ -138,7 +139,7 @@ def test_scan_with_ocr_uses_direct_engine(tmp_path, monkeypatch):
         convert_module, "_validate_input", lambda *args: frozenset()
     )
     monkeypatch.setattr(
-        convert_module, "_via_pypdfium2", lambda *args, **kwargs: [""]
+        convert_module, "_read_pdf_text", lambda *args, **kwargs: ([""], 0)
     )
     monkeypatch.setattr(convert_module, "script_of", lambda *args, **kwargs: "latin")
     monkeypatch.setattr(
@@ -150,6 +151,72 @@ def test_scan_with_ocr_uses_direct_engine(tmp_path, monkeypatch):
     assert convert(source, ocr=True).backend == "rapidocr"
 
 
+def _unreadable_text_layer(*args, **kwargs):
+    raise ConversionError("pdftext backend failed")
+
+
+def test_text_worker_failures_are_not_turned_into_ocr(tmp_path, monkeypatch):
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"fake")
+    monkeypatch.setattr(convert_module, "ensure_ocr_available", lambda: None)
+    monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
+    monkeypatch.setattr(convert_module, "_read_pdf_text", _unreadable_text_layer)
+
+    def no_ocr(*args, **kwargs):
+        raise AssertionError("a deadline or limit error must not reach OCR")
+
+    monkeypatch.setattr(convert_module, "script_of", no_ocr)
+    monkeypatch.setattr(convert_module, "convert_with_ocr", no_ocr)
+
+    with pytest.raises(ConversionError, match="pdftext backend failed"):
+        convert(source, ocr=True)
+
+
+def test_unreadable_text_layer_reads_as_a_scan(tmp_path, monkeypatch):
+    def pdfium_fails(*args, **kwargs):
+        raise RuntimeError("Data format error")
+
+    monkeypatch.setattr(convert_module, "_via_pypdfium2", pdfium_fails)
+    assert json.loads(convert_module._via_pdftext(tmp_path / "x.pdf", None)) == {
+        "pages": [],
+        "scanned": 0,
+    }
+
+    def over_limit(*args, **kwargs):
+        raise ConversionError("extracted text over limit")
+
+    monkeypatch.setattr(convert_module, "_via_pypdfium2", over_limit)
+    with pytest.raises(ConversionError, match="over limit"):
+        convert_module._via_pdftext(tmp_path / "x.pdf", None)
+
+
+def test_unreadable_text_layer_still_runs_docling_ocr(
+    tmp_path, monkeypatch, spy, as_thai
+):
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"fake")
+    monkeypatch.setattr(convert_module, "_read_pdf_text", _unreadable_text_layer)
+
+    assert convert(source, ocr=True, docling=True).backend == "docling+ocr"
+    assert [call["force_ocr"] for call in spy] == [False]
+
+
+@pytest.mark.parametrize(
+    "reply",
+    ["not json", '{"pages": []}', '{"pages": "xx", "scanned": 0}', '{"pages": [""], "scanned": 2}'],
+)
+def test_malformed_pdftext_reply_is_a_conversion_error(tmp_path, monkeypatch, reply):
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"fake")
+    monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
+    monkeypatch.setattr(
+        convert_module, "_run_isolated_backend", lambda *args, **kwargs: reply
+    )
+
+    with pytest.raises(ConversionError, match="invalid result"):
+        convert(source)
+
+
 def test_pdf_markers_do_not_make_short_ocr_output_usable(
     tmp_path, monkeypatch
 ):
@@ -158,7 +225,7 @@ def test_pdf_markers_do_not_make_short_ocr_output_usable(
     monkeypatch.setattr(convert_module, "ensure_ocr_available", lambda: None)
     monkeypatch.setattr(convert_module, "_validate_input", lambda *args: None)
     monkeypatch.setattr(
-        convert_module, "_via_pypdfium2", lambda *args, **kwargs: [""]
+        convert_module, "_read_pdf_text", lambda *args, **kwargs: ([""], 0)
     )
     monkeypatch.setattr(
         convert_module, "script_of", lambda *args, **kwargs: "latin"
@@ -191,6 +258,9 @@ def test_docling_receives_explicit_ocr_state(
         convert_module, "_validate_input", lambda *args: frozenset()
     )
     monkeypatch.setattr(convert_module, "script_of", lambda *args, **kwargs: "thai")
+    monkeypatch.setattr(
+        convert_module, "_read_pdf_text", lambda *args, **kwargs: (["x" * 40], 0)
+    )
     monkeypatch.setattr(
         convert_module,
         "_run_isolated_backend",
@@ -243,7 +313,7 @@ def test_damaged_thai_forces_docling_ocr_only_when_requested(
     source.write_bytes(b"fake")
     damaged = "ประกนอบตเหตสวนบคคล ระบบสงสนคาถงบานทวประเทศไทย " * 60
     monkeypatch.setattr(
-        convert_module, "_via_pypdfium2", lambda *args, **kwargs: [damaged]
+        convert_module, "_read_pdf_text", lambda *args, **kwargs: ([damaged], 0)
     )
 
     result = convert(source, ocr=True, docling=True, device="cpu")

@@ -421,3 +421,72 @@ def test_directory_inputs_are_converted_inside_their_collected_root(
 
     assert cli.main([str(inbox), "-o", str(tmp_path / "out")]) == 0
     assert seen == [inbox]
+
+
+def test_directory_inputs_keep_their_folders(tmp_path):
+    inbox = tmp_path / "inbox"
+    for folder in ("a", "b"):
+        (inbox / folder).mkdir(parents=True)
+        (inbox / folder / "same.txt").write_text(f"{folder} document body", encoding="utf-8")
+    (inbox / "top.txt").write_text("top document body", encoding="utf-8")
+    outdir = tmp_path / "out"
+
+    assert cli.main([str(inbox), "-o", str(outdir)]) == 0
+    assert (outdir / "a" / "same.md").read_text(encoding="utf-8") == "a document body"
+    assert (outdir / "b" / "same.md").read_text(encoding="utf-8") == "b document body"
+    assert (outdir / "top.md").exists()
+
+
+def test_many_output_folders_fit_in_few_file_descriptors(tmp_path):
+    resource = pytest.importorskip("resource")
+    import os
+
+    inbox = tmp_path / "inbox"
+    for number in range(80):
+        (inbox / f"d{number}").mkdir(parents=True)
+        (inbox / f"d{number}" / "a.txt").write_text("document body", encoding="utf-8")
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    in_use = len(os.listdir("/dev/fd"))
+    resource.setrlimit(resource.RLIMIT_NOFILE, (in_use + 40, hard))
+    try:
+        assert cli.main([str(inbox), "-o", str(tmp_path / "out"), "--quiet"]) == 0
+    finally:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (soft, hard))
+    assert (tmp_path / "out" / "d79" / "a.md").exists()
+
+
+def test_folder_scans_skip_macos_and_office_companion_files(tmp_path):
+    inbox = tmp_path / "usb"
+    inbox.mkdir()
+    (inbox / "report.txt").write_text("a real document body", encoding="utf-8")
+    (inbox / "._report.txt").write_bytes(b"\x00\x05\x16\x07Mac OS X")
+    (inbox / "._scan.pdf").write_bytes(b"\x00\x05\x16\x07Mac OS X")
+    (inbox / "~$report.docx").write_bytes(b"\x05Owner" + b"\x00" * 150)
+
+    files, failures = cli.collect([str(inbox)])
+
+    assert [item.path.name for item in files] == ["report.txt"]
+    assert failures == []
+
+
+def test_a_full_batch_stops_converting(tmp_path, monkeypatch, capsys):
+    from dataclasses import replace
+
+    from d2md.convert import convert as real_convert
+
+    inbox = tmp_path / "batch"
+    inbox.mkdir()
+    for number in range(5):
+        (inbox / f"f{number}.txt").write_text("x" * 40, encoding="utf-8")
+    calls = []
+
+    def counting_convert(path, **kwargs):
+        calls.append(path)
+        return real_convert(path, **kwargs)
+
+    monkeypatch.setattr(cli, "convert", counting_convert)
+    monkeypatch.setattr(cli, "DEFAULT_LIMITS", replace(cli.DEFAULT_LIMITS, max_output_chars=50))
+
+    assert cli.main([str(inbox), "-o", str(tmp_path / "out")]) == 1
+    assert len(calls) == 2
+    assert "rerun to continue" in capsys.readouterr().out

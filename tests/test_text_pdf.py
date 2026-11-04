@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from d2md.convert import (
+    DEFAULT_LIMITS,
     ConversionError,
     ConversionLimits,
     _fast_text_is_trustworthy,
@@ -147,6 +148,23 @@ def test_docling_pages_escape_forged_markers_and_keep_real_spans(monkeypatch):
     assert "<!-- Page number: 99 -->" not in markdown
     assert "<!-- Content spans pages: 7-8 -->" not in markdown
     assert "<!-- Content spans pages: 1-2 -->" in markdown
+
+
+def test_json_escapes_do_not_count_toward_the_output_limit(tmp_path):
+    pytest.importorskip("reportlab")
+    from reportlab.pdfgen import canvas
+
+    source = tmp_path / "quotes.pdf"
+    document = canvas.Canvas(str(source))
+    document.drawString(20, 800, '"' * 90)
+    document.drawString(20, 780, "\\" * 90)
+    document.showPage()
+    document.save()
+    markdown = convert(source, limits=ConversionLimits(max_output_chars=None)).markdown
+
+    limited = convert(source, limits=ConversionLimits(max_output_chars=len(markdown)))
+
+    assert limited.markdown == markdown
 
 
 def _deck(path, short_page):
@@ -300,3 +318,180 @@ def test_born_digital_pdf_marks_pages_in_source_order(multi_page_text_pdf):
         "Page 3 of the specification document."
     )
     assert "\r" not in result.markdown
+
+
+def _scan_pdf(path, pages=3, footer="Confidential copy - Page {n} - Legal"):
+    pytest.importorskip("reportlab")
+    from PIL import Image
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    document = canvas.Canvas(str(path), pagesize=A4)
+    for number in range(1, pages + 1):
+        scan = ImageReader(Image.new("RGB", (124, 175), "white"))
+        document.drawImage(scan, 0, 0, width=A4[0], height=A4[1])
+        document.drawString(72, 20, footer.format(n=number))
+        document.showPage()
+    document.save()
+    return path
+
+
+def test_a_scan_with_a_stamped_footer_needs_ocr(tmp_path):
+    with pytest.raises(ConversionError, match="needs OCR"):
+        convert(_scan_pdf(tmp_path / "stamped.pdf"))
+
+
+def test_one_scanned_page_in_ten_still_needs_ocr(tmp_path):
+    pytest.importorskip("reportlab")
+    from PIL import Image
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+
+    source = tmp_path / "mostly_text.pdf"
+    document = canvas.Canvas(str(source), pagesize=A4)
+    for number in range(1, 11):
+        if number == 4:
+            scan = ImageReader(Image.new("RGB", (124, 175), "white"))
+            document.drawImage(scan, 0, 0, width=A4[0], height=A4[1])
+        else:
+            document.drawString(72, 720, f"Page {number}. {FULL}")
+        document.showPage()
+    document.save()
+
+    with pytest.raises(ConversionError, match="needs OCR"):
+        convert(source)
+
+
+def _raw_scan_pdf(path, page_content, form_content=b"", nested=False):
+    """A one-page PDF with a 2x2 image drawn by raw content streams."""
+
+    def stream(data, extra=b""):
+        return b"<< /Length %d %s >>\nstream\n" % (len(data), extra) + data + b"\nendstream"
+
+    form = b"/Type /XObject /Subtype /Form /BBox [0 0 612 792] /Resources << /XObject << %s >> >>"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject"
+        b" << /Im0 5 0 R /Fm0 6 0 R >> >> /Contents 4 0 R >>",
+        stream(page_content),
+        stream(
+            bytes([200, 50, 50, 200]),
+            b"/Type /XObject /Subtype /Image /Width 2 /Height 2"
+            b" /ColorSpace /DeviceGray /BitsPerComponent 8",
+        ),
+    ]
+    if nested:
+        objects.append(stream(b"/Fm1 Do\n", form % b"/Fm1 7 0 R"))
+    objects.append(stream(form_content, form % b"/Im0 5 0 R"))
+    body = bytearray(b"%PDF-1.5\n")
+    offsets = []
+    for number, item in enumerate(objects, 1):
+        offsets.append(len(body))
+        body += b"%d 0 obj\n" % number + item + b"\nendobj\n"
+    xref = len(body)
+    body += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    body += b"".join(b"%010d 00000 n \n" % offset for offset in offsets)
+    body += b"trailer << /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    path.write_bytes(bytes(body))
+    return path
+
+
+@pytest.mark.parametrize(
+    "page_content,form_content,nested,expected",
+    [
+        (b"q 612 0 0 792 0 0 cm /Fm0 Do Q\n", b"/Im0 Do\n", False, 1),
+        (b"/Fm0 Do\n", b"q 612 0 0 792 0 0 cm /Im0 Do Q\n", True, 1),
+        (
+            b"".join(b"q 612 0 0 198 0 %d cm /Im0 Do Q\n" % (i * 198) for i in range(4)),
+            b"",
+            False,
+            1,
+        ),
+        (b"q 0.1 0 0 0.1 0 0 cm /Fm0 Do Q\n", b"q 612 0 0 792 0 0 cm /Im0 Do Q\n", False, 0),
+    ],
+    ids=["form-scaled", "nested-forms", "four-strips", "form-shrunk"],
+)
+def test_scan_coverage_is_measured_on_the_page(
+    tmp_path, page_content, form_content, nested, expected
+):
+    source = _raw_scan_pdf(tmp_path / "scan.pdf", page_content, form_content, nested)
+
+    assert convert_module._image_scanned_pages(source, [""]) == expected
+
+
+def test_a_page_too_crowded_to_inspect_counts_as_scanned(tmp_path, monkeypatch):
+    pytest.importorskip("reportlab")
+    from reportlab.pdfgen import canvas
+
+    source = tmp_path / "crowded.pdf"
+    document = canvas.Canvas(str(source))
+    for x in range(30):
+        document.rect(x, 10, 1, 1)
+    document.showPage()
+    document.save()
+    monkeypatch.setattr(convert_module, "_MAX_SCAN_OBJECTS", 20)
+
+    assert convert_module._image_scanned_pages(source, [""]) == 1
+
+
+def test_one_healthy_page_cannot_clear_damaged_thai_pages():
+    assert not _fast_text_is_trustworthy([BROKEN, BROKEN, "คำ " + FULL])
+
+
+def test_pdf_preflight_reads_sizes_without_loading_pages(
+    multi_page_text_pdf, monkeypatch
+):
+    import pypdfium2
+
+    def no_page_loads(*_args):
+        raise AssertionError("preflight loaded a page")
+
+    monkeypatch.setattr(pypdfium2.PdfDocument, "__getitem__", no_page_loads)
+
+    assert convert_module._validate_pdf(multi_page_text_pdf, DEFAULT_LIMITS)
+
+
+def test_a_slow_pdf_text_layer_stops_at_the_deadline(tmp_path):
+    import zlib
+
+    stream = zlib.compress(b"q 1 0 0 1 0 0 cm 0 0 1 1 re f Q\n" * 1_500_000, 9)
+    pages = 3
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        (
+            f"<< /Type /Pages /Count {pages} /Kids ["
+            + " ".join(f"{3 + i} 0 R" for i in range(pages))
+            + "] >>"
+        ).encode(),
+        *[
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            f"/Contents {3 + pages} 0 R >>".encode()
+            for _ in range(pages)
+        ],
+        f"<< /Length {len(stream)} /Filter /FlateDecode >>\nstream\n".encode()
+        + stream
+        + b"\nendstream",
+    ]
+    body = bytearray(b"%PDF-1.5\n")
+    offsets = []
+    for number, item in enumerate(objects, 1):
+        offsets.append(len(body))
+        body += f"{number} 0 obj\n".encode() + item + b"\nendobj\n"
+    xref = len(body)
+    body += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode()
+    body += b"".join(f"{offset:010d} 00000 n \n".encode() for offset in offsets)
+    body += (
+        f"trailer << /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref}\n%%EOF\n"
+    ).encode()
+    source = tmp_path / "slow.pdf"
+    source.write_bytes(bytes(body))
+
+    with pytest.raises(ConversionError, match="timed out|deadline"):
+        convert(source, limits=ConversionLimits(max_backend_seconds=1))

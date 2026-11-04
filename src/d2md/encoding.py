@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import codecs
 import os
+import re
 from pathlib import Path
 
 from .errors import ConversionError
@@ -61,13 +62,51 @@ def thai_looks_damaged(text: str) -> bool:
     Thai prose of any length without a single `ำ` is effectively impossible —
     คำ ทำ จำ น้ำ สำ are too common to all be absent.
 
-    Used only to decide whether the fast path's text can be trusted. Docling
-    reads both cases correctly, so nothing downstream depends on this being
-    right; a false positive costs a slower conversion, nothing more.
+    Used only to decide whether the text layer can be trusted. A false
+    positive asks for OCR the document did not need.
     """
     if thai_consonant_count(text) < DAMAGE_MIN_CONSONANTS:
         return False
     return SARA_AM not in text
+
+
+# Thai vowel signs and tone marks only ever follow a Thai character.
+_THAI_MARKS = frozenset(
+    [0x0E31, *range(0x0E34, 0x0E3B), *range(0x0E47, 0x0E4F)]
+)
+
+
+def _plausible_thai(text: str) -> bool:
+    """Judge CP874 by the Thai it produced, not by how much of the file it is.
+
+    An English invoice with one Thai word is a few percent Thai. A Latin-1
+    accent decoded as CP874 is a Thai mark straight after a Latin letter,
+    which written Thai never produces. Most other Latin-1 accents decode to
+    Thai vowels or digits, so a run with no consonant that touches a Latin
+    letter (Gr๖฿e for Größe) is rejected too. Latin-1 symbols such as © and
+    £ decode to lone consonants, so at least one run must hold two.
+    """
+    runs = list(re.finditer("[ก-๛]+", text))
+    if not any(thai_consonant_count(run.group()) >= 2 for run in runs):
+        return False
+    for run in runs:
+        edges = text[max(run.start() - 1, 0) : run.start()] + text[run.end() : run.end() + 1]
+        if not thai_consonant_count(run.group()) and re.search("[A-Za-z]", edges):
+            return False
+    non_ascii = thai = 0
+    previous = ""
+    for char in text:
+        code = ord(char)
+        if code > 0x7F:
+            non_ascii += 1
+            if THAI_START <= code <= THAI_END:
+                thai += 1
+                if code in _THAI_MARKS and not (
+                    THAI_START <= ord(previous or "\0") <= THAI_END
+                ):
+                    return False
+        previous = char
+    return non_ascii > 0 and thai / non_ascii >= 0.9
 
 
 def _decode_with_limit(
@@ -145,7 +184,7 @@ def decode(
 
     try:
         text = _decode_with_limit(raw, "cp874", max_chars, name)
-        if thai_ratio(text) > THAI_MIN_RATIO:
+        if thai_ratio(text) > THAI_MIN_RATIO or _plausible_thai(text):
             return text, "cp874"
     except UnicodeDecodeError:
         pass
@@ -179,27 +218,68 @@ def decode(
     )
 
 
+_HTML_CHARSET = re.compile(rb"""<meta[^>]+charset\s*=\s*["']?\s*([A-Za-z0-9._:-]+)""", re.I)
+# Browsers read these labels differently from Python (WHATWG Encoding Standard).
+_HTML_LABELS = {
+    "iso-8859-1": "cp1252",
+    "iso8859-1": "cp1252",
+    "latin1": "cp1252",
+    "latin-1": "cp1252",
+    "ascii": "cp1252",
+    "us-ascii": "cp1252",
+    "windows-874": "cp874",
+    "tis-620": "cp874",
+    "iso-8859-11": "cp874",
+    "utf-16": "utf-8",
+    "utf-16le": "utf-8",
+    "utf-16be": "utf-8",
+}
+
+
+def decode_html(raw: bytes) -> str:
+    """Decode HTML the way a browser does: BOM, then declared charset, then
+    the same way as plain text.
+
+    MarkItDown guesses the encoding instead, and a Thai page that says
+    windows-874 came back as Chinese.
+    """
+    for bom, codec in (
+        (codecs.BOM_UTF8, "utf-8-sig"),
+        (codecs.BOM_UTF16_LE, "utf-16"),
+        (codecs.BOM_UTF16_BE, "utf-16"),
+    ):
+        if raw.startswith(bom):
+            return raw.decode(codec, errors="replace")
+    declared = _HTML_CHARSET.search(raw[:4096])
+    if declared:
+        label = declared.group(1).decode("ascii").lower()
+        try:
+            codec = codecs.lookup(_HTML_LABELS.get(label, label)).name
+            # A browser shows one bad byte in a UTF-8 page as one �. Other
+            # labels stay strict so a GBK page labeled gb2312 reaches detection.
+            return raw.decode(codec, "replace" if codec == "utf-8" else "strict")
+        except (LookupError, UnicodeError):
+            pass
+    return decode(raw)[0]
+
+
 def read_text(
     path: Path,
     max_bytes: int | None = None,
     max_chars: int | None = None,
-    name: str | None = None,
 ) -> str:
     """Read a text input without allowing an unbounded allocation.
 
     Reading one byte past the limit also protects against a file that grows
     after its caller's size check.  ``None`` is reserved for the explicit
     trusted-input override exposed by the CLI.
-
-    ``name`` is what errors call the file; the CLI passes the name the user
-    typed, because ``path`` by then is a private snapshot of it.
     """
     if max_bytes is not None and max_bytes < 0:
         raise ValueError("max_bytes must be non-negative or None")
     if max_chars is not None and max_chars < 0:
         raise ValueError("max_chars must be non-negative or None")
 
-    name = name or path.name
+    name = path.name
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
         descriptor = os.open(path, flags)

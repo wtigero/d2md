@@ -203,6 +203,10 @@ def collect(
                 for entry in entries:
                     consume_directory_entry()
                     candidate = Path(entry.path)
+                    # macOS writes ._name beside each file on exFAT and network
+                    # drives, and Office leaves ~$name lock files.
+                    if candidate.name.startswith(("._", "~$")):
+                        continue
                     try:
                         candidate_details = candidate.lstat()
                     except OSError as exc:
@@ -929,17 +933,56 @@ def main(argv: list[str] | None = None) -> int:
 
     done = skipped = 0
     published_output_chars = 0
+    batch_full = False
+    # One subfolder handle at a time: a large tree must not exhaust descriptors.
+    subdirectory: tuple[Path, OutputDirectory] | None = None
+
+    def output_for(source: CollectedInput) -> tuple[OutputDirectory, Path]:
+        """Mirror the folders under a directory input, so a/x.pdf and b/x.pdf
+        both convert."""
+        nonlocal subdirectory
+        relative = Path()
+        if source.root is not None:
+            relative = source.path.parent.relative_to(source.root)
+        if relative == Path():
+            return output_directory, relative
+        if subdirectory is None or subdirectory[0] != relative:
+            if subdirectory is not None:
+                subdirectory[1].close()
+                subdirectory = None
+            subdirectory = (relative, _open_output_directory(outdir / relative))
+        return subdirectory[1], relative
     claimed_outputs: dict[str, CollectedInput] = {}
     result_rows: list[dict[str, object]] = []
     stdout_markdown = ""
     machine_quiet = args.quiet or args.json_output or args.stdout
     try:
         for index, source in enumerate(files, 1):
+            if batch_full:
+                failures.append(
+                    (
+                        source.path,
+                        "not converted: the batch output limit was reached; "
+                        "rerun to continue",
+                    )
+                )
+                continue
             filename = f"{source.path.stem}.md"
+            relative = Path()
+            target = output_directory
+            if output_directory is not None:
+                try:
+                    target, relative = output_for(source)
+                except ConversionError as exc:
+                    failures.append((source.path, str(exc)))
+                    if not args.json_output:
+                        print(f"FAILED  {display_text(exc)}")
+                    continue
             # macOS and Windows treat these spellings as one output file.
             # Case folding can undo NFC, so normalize again after it.
             output_key = unicodedata.normalize(
-                "NFC", unicodedata.normalize("NFC", filename).casefold()
+                "NFC",
+                unicodedata.normalize("NFC", (relative / filename).as_posix()).casefold(),
             )
             if output_directory is not None:
                 claimed_by = claimed_outputs.get(output_key, source)
@@ -960,7 +1003,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
 
                 try:
-                    destination = _destination_status(output_directory, filename)
+                    destination = _destination_status(target, filename)
                 except ConversionError as exc:
                     failures.append((source.path, str(exc)))
                     if not args.json_output:
@@ -976,7 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
                     result_rows.append(
                         {
                             "source": str(source.path),
-                            "output": str(outdir / filename),
+                            "output": str(outdir / relative / filename),
                             "status": "skipped",
                         }
                     )
@@ -1032,16 +1075,15 @@ def main(argv: list[str] | None = None) -> int:
                     limits.max_output_chars is not None
                     and prospective_output_chars > limits.max_output_chars
                 ):
+                    batch_full = True
                     raise ConversionError(
                         "batch output limit exceeded: publishing "
                         f"{source.path.name} would produce "
                         f"{prospective_output_chars:,} characters; maximum is "
                         f"{limits.max_output_chars:,}"
                     )
-                if output_directory is not None:
-                    if not _write_output(
-                        output_directory, filename, result.markdown, args.force
-                    ):
+                if target is not None:
+                    if not _write_output(target, filename, result.markdown, args.force):
                         raise ConversionError(
                             "refusing to overwrite output created during conversion: "
                             f"{filename}"
@@ -1074,7 +1116,7 @@ def main(argv: list[str] | None = None) -> int:
                 result_rows.append(
                     {
                         "source": str(source.path),
-                        "output": str(outdir / filename),
+                        "output": str(outdir / relative / filename),
                         "status": "converted",
                         "backend": result.backend,
                         "characters": len(result.markdown),
@@ -1087,6 +1129,8 @@ def main(argv: list[str] | None = None) -> int:
                     f"  {elapsed:5.1f}s"
                 )
     finally:
+        if subdirectory is not None:
+            subdirectory[1].close()
         if output_directory is not None:
             output_directory.close()
 

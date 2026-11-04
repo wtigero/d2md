@@ -8,12 +8,14 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from html import escape
+import io
 import os
 import stat
 import struct
 import tempfile
 import zipfile
 from dataclasses import dataclass, replace
+import json
 from math import ceil
 from pathlib import Path
 
@@ -23,8 +25,15 @@ from .capabilities import (
     ensure_ocr_available,
     install_command,
 )
-from .direct_ocr import IMAGE_FORMATS, OCR_RENDER_SCALE, convert_with_ocr, image_pages
-from .encoding import read_text, thai_looks_damaged
+from .direct_ocr import (
+    IMAGE_FORMATS,
+    OCR_RENDER_SCALE,
+    check_limit as _check_limit,
+    convert_with_ocr,
+    image_pages,
+    page_pixels,
+)
+from .encoding import decode_html, read_text, thai_looks_damaged
 from .errors import ConversionError
 from .page_markers import (
     DOCLING_PAGE_BREAK,
@@ -52,6 +61,12 @@ MIN_CHARS = 20
 #: A page yielding fewer non-whitespace characters than this has no usable text
 #: layer — almost always a scanned image.
 EMPTY_PAGE_CHARS = 20
+
+#: A page with less text than this and an image covering at least this share
+#: of it is a scan, even when a stamped footer or page number is readable.
+SCAN_TEXT_CHARS = 100
+SCAN_IMAGE_COVERAGE = 0.5
+_MAX_SCAN_OBJECTS = 10_000
 
 #: Fraction of empty pages above which the fast path hands the whole file to
 #: Docling. Loose enough to tolerate the odd genuinely blank page in a long
@@ -232,29 +247,6 @@ _HAS_SECURE_DIR_FD = (
 )
 
 
-def _display_name(path: Path, name: str | None) -> str:
-    """What to call this file in an error the user will read.
-
-    Backends read a private snapshot rather than the caller's path
-    (`_snapshot_input`), so `path.name` here can be `d2md-input-<hex>.pdf`.
-    Every message a user sees has to name the file they actually passed.
-    """
-    return name or path.name
-
-
-def _check_limit(
-    value: int | float,
-    limit: int | None,
-    label: str,
-    name: str | Path,
-) -> None:
-    if limit is not None and value > limit:
-        display = name.name if isinstance(name, Path) else name
-        raise ConversionError(
-            f"{label} limit exceeded: {display} has {value:,}; maximum is {limit:,}"
-        )
-
-
 def _file_identity(details: os.stat_result) -> tuple[int, int]:
     return details.st_dev, details.st_ino
 
@@ -404,6 +396,30 @@ def _snapshot_input(
     descriptor = _open_verified_input(path)
     snapshot: Path | None = None
     try:
+        try:
+            snapshot = _copy_snapshot(descriptor, path, limits, identity)
+        except OSError as exc:
+            raise ConversionError(
+                f"cannot snapshot input safely: {path.name}: {exc}"
+            ) from exc
+        yield snapshot
+    finally:
+        os.close(descriptor)
+        if snapshot is not None:
+            try:
+                snapshot.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def _copy_snapshot(
+    descriptor: int,
+    path: Path,
+    limits: ConversionLimits,
+    identity: tuple[int, int] | None,
+) -> Path:
+    snapshot: Path | None = None
+    try:
         opened = os.fstat(descriptor)
         if identity is not None and _file_identity(opened) != identity:
             raise ConversionError(f"input changed after it was collected: {path}")
@@ -422,22 +438,17 @@ def _snapshot_input(
                 copied += len(chunk)
                 _check_limit(copied, limits.max_input_bytes, "input", path)
                 copy.write(chunk)
-        yield snapshot
-    except OSError as exc:
-        raise ConversionError(f"cannot snapshot input safely: {path.name}: {exc}") from exc
-    finally:
-        os.close(descriptor)
+    except BaseException:
         if snapshot is not None:
-            try:
-                snapshot.unlink(missing_ok=True)
-            except OSError:
-                pass
+            snapshot.unlink(missing_ok=True)
+        raise
+    return snapshot
 
 
 def _check_input_size(
-    path: Path, limits: ConversionLimits, name: str | None = None
+    path: Path, limits: ConversionLimits
 ) -> None:
-    name = _display_name(path, name)
+    name = path.name
     try:
         details = path.lstat()
     except OSError as exc:
@@ -449,21 +460,14 @@ def _check_input_size(
     _check_limit(details.st_size, limits.max_input_bytes, "input", name)
 
 
-def _page_pixels(page, scale: float = OCR_RENDER_SCALE) -> int:
-    """Estimate the raster size before rendering a PDF page."""
-    width, height = page.get_size()
-    return ceil(width * scale) * ceil(height * scale)
-
-
 def _validate_pdf(
     path: Path,
     limits: ConversionLimits,
-    name: str | None = None,
     *,
     probe: bool = False,
 ) -> bool:
     """Reject over-budget PDFs and report whether a content probe parsed one."""
-    name = _display_name(path, name)
+    name = path.name
     try:
         import pypdfium2
     except ImportError as exc:
@@ -483,19 +487,18 @@ def _validate_pdf(
         _check_limit(page_count, limits.max_pdf_pages, "PDF page", name)
         total_pixels = 0
         for index in range(page_count):
-            page = document[index]
-            try:
-                pixels = _page_pixels(page)
-                _check_limit(pixels, limits.max_page_pixels, "rendered page pixel", name)
-                total_pixels += pixels
-                _check_limit(
-                    total_pixels,
-                    limits.max_total_pdf_pixels,
-                    "total PDF rendered pixel",
-                    name,
-                )
-            finally:
-                page.close()
+            # Loading a page parses its content, which a 500 KB file can make
+            # take many minutes. The size needs no content.
+            width, height = document.get_page_size(index)
+            pixels = ceil(width * OCR_RENDER_SCALE) * ceil(height * OCR_RENDER_SCALE)
+            _check_limit(pixels, limits.max_page_pixels, "rendered page pixel", name)
+            total_pixels += pixels
+            _check_limit(
+                total_pixels,
+                limits.max_total_pdf_pixels,
+                "total PDF rendered pixel",
+                name,
+            )
     finally:
         document.close()
     return True
@@ -504,12 +507,11 @@ def _validate_pdf(
 def _validate_image(
     path: Path,
     limits: ConversionLimits,
-    name: str | None = None,
     *,
     probe: bool = False,
 ) -> bool:
     """Inspect image dimensions and report whether a content probe parsed one."""
-    name = _display_name(path, name)
+    name = path.name
     try:
         from PIL import Image
     except ImportError as exc:
@@ -742,10 +744,10 @@ def _validate_zip_member_count(
 
 
 def _validate_zip_container(
-    path: Path, limits: ConversionLimits, name: str | None = None
+    path: Path, limits: ConversionLimits
 ) -> None:
     """Bound archive metadata before ZipFile creates one object per member."""
-    name = _display_name(path, name)
+    name = path.name
     _validate_zip_member_count(path, limits.max_archive_members, name)
     try:
         with zipfile.ZipFile(path) as archive:
@@ -817,27 +819,27 @@ def _probe_markitdown_content(
         raise ConversionError(f"cannot inspect input {name}: {exc}") from exc
 
     validated: set[str] = set()
-    if b"%PDF-" in header and _validate_pdf(path, limits, name, probe=True):
+    if b"%PDF-" in header and _validate_pdf(path, limits, probe=True):
         validated.add(MARKITDOWN_PDF)
     if _is_supported_image_header(header) and _validate_image(
-        path, limits, name, probe=True
+        path, limits, probe=True
     ):
         validated.add(MARKITDOWN_IMAGE)
     return frozenset(validated)
 
 
 def _validate_input(
-    path: Path, limits: ConversionLimits, name: str | None = None
+    path: Path, limits: ConversionLimits
 ) -> frozenset[str]:
     """Run cheap, format-aware guards before a heavy backend is invoked."""
-    name = _display_name(path, name)
-    _check_input_size(path, limits, name)
+    name = path.name
+    _check_input_size(path, limits)
     extension = path.suffix.lower()
 
     # ZIP detection takes precedence because MarkItDown otherwise treats an
     # extensionless or renamed archive as a recursively expandable container.
     if zipfile.is_zipfile(path):
-        _validate_zip_container(path, limits, name)
+        _validate_zip_container(path, limits)
         if extension not in ZIP_CONTAINERS:
             raise ConversionError(
                 f"generic ZIP archives are not supported: {name}; "
@@ -851,11 +853,11 @@ def _validate_input(
     # particular, a corrupt Office container must still reach the ZIP
     # validator even when content detection cannot recognize it as a ZIP.
     if extension == ".pdf":
-        _validate_pdf(path, limits, name)
+        _validate_pdf(path, limits)
     elif extension in PDFISH:
-        _validate_image(path, limits, name)
+        _validate_image(path, limits)
     elif extension in ZIP_CONTAINERS:
-        _validate_zip_container(path, limits, name)
+        _validate_zip_container(path, limits)
     elif extension not in PLAIN:
         return _probe_markitdown_content(path, limits, name)
     return frozenset()
@@ -1188,6 +1190,15 @@ def _build_markitdown(validated_formats: frozenset[str]):
         def convert(self, file_stream, stream_info, **kwargs):
             return DocumentConverterResult(markdown=_xlsx_markdown(file_stream))
 
+    class ThaiAwareHtmlConverter(HtmlConverter):
+        def convert(self, file_stream, stream_info, **kwargs):
+            text = decode_html(file_stream.read())
+            return super().convert(
+                io.BytesIO(text.encode("utf-8")),
+                stream_info.copy_and_update(charset="utf-8"),
+                **kwargs,
+            )
+
     class SourcePreservingXlsConverter(XlsConverter):
         def convert(self, file_stream, stream_info, **kwargs):
             return convert_spreadsheet(
@@ -1196,7 +1207,7 @@ def _build_markitdown(validated_formats: frozenset[str]):
 
     converter = MarkItDown(enable_builtins=False)
     converter.register_converter(PlainTextConverter(), priority=10.0)
-    converter.register_converter(HtmlConverter(), priority=10.0)
+    converter.register_converter(ThaiAwareHtmlConverter(), priority=10.0)
     specific = [
         RssConverter(),
         DocxConverter(),
@@ -1254,7 +1265,6 @@ def _run_isolated_backend(
 def _via_pypdfium2(
     path: Path,
     limits: ConversionLimits = DEFAULT_LIMITS,
-    name: str | None = None,
 ) -> list[str]:
     """Read the PDF's text layer, one string per page. No structure, no OCR.
 
@@ -1264,7 +1274,7 @@ def _via_pypdfium2(
     """
     import pypdfium2
 
-    name = _display_name(path, name)
+    name = path.name
     pages: list[str] = []
     total_chars = 0
     doc = pypdfium2.PdfDocument(str(path))
@@ -1293,21 +1303,120 @@ def _via_pypdfium2(
     return pages
 
 
-def _fast_text_is_trustworthy(pages: list[str]) -> bool:
+def _image_scanned_pages(path: Path, pages: list[str]) -> int:
+    """Count short pages that are mostly image, the shape of a scan.
+
+    Images inside forms are mapped to the page through each form's matrix,
+    and a scan stored as strips adds up. This only ever adds refusals. A page
+    with too many objects to inspect counts as scanned, so a hostile page
+    cannot make this slow.
+    """
+    import pypdfium2
+    from pypdfium2 import raw as pdfium_c
+
+    short = [
+        index
+        for index, text in enumerate(pages)
+        if len("".join(text.split())) < SCAN_TEXT_CHARS
+    ]
+    if not short:
+        return 0
+    document = pypdfium2.PdfDocument(str(path))
+    try:
+        scanned = 0
+        for index in short:
+            page = document[index]
+            try:
+                page_left, page_bottom, page_right, page_top = page.get_bbox()
+                area = (page_right - page_left) * (page_top - page_bottom)
+                covered = 0.0
+                for seen, item in enumerate(page.get_objects()):
+                    if seen >= _MAX_SCAN_OBJECTS:
+                        covered = area
+                        break
+                    if item.type != pdfium_c.FPDF_PAGEOBJ_IMAGE:
+                        continue
+                    left, bottom, right, top = item.get_bounds()
+                    form = item.container
+                    while form is not None:
+                        left, bottom, right, top = form.get_matrix().on_rect(
+                            left, bottom, right, top
+                        )
+                        form = form.container
+                    covered += max(0.0, min(right, page_right) - max(left, page_left)) * max(
+                        0.0, min(top, page_top) - max(bottom, page_bottom)
+                    )
+                scanned += covered >= SCAN_IMAGE_COVERAGE * area
+            finally:
+                page.close()
+        return scanned
+    finally:
+        document.close()
+
+
+def _via_pdftext(path: Path, max_output_chars: int | None) -> str:
+    """Worker side of the default PDF route, so a deadline can stop it."""
+    limits = ConversionLimits(max_pdf_pages=None, max_output_chars=max_output_chars)
+    try:
+        pages = _via_pypdfium2(path, limits=limits)
+    except (ConversionError, MemoryError):
+        raise
+    except Exception:
+        # An unreadable text layer is a scan, not a failure.
+        pages = []
+    return json.dumps(
+        {"pages": pages, "scanned": _image_scanned_pages(path, pages)},
+        ensure_ascii=False,
+    )
+
+
+def _read_pdf_text(path: Path, limits: ConversionLimits) -> tuple[list[str], int]:
+    """Read the text layer in a worker: PDFium can spend many minutes on one
+    small hostile page, and only a worker has a deadline and a memory ceiling."""
+    reply = _run_isolated_backend(
+        "pdftext",
+        path,
+        max_output_chars=limits.max_output_chars,
+        timeout_seconds=limits.max_backend_seconds,
+        max_memory_bytes=limits.max_backend_memory_bytes,
+    )
+    try:
+        result = json.loads(reply)
+        pages, scanned = result["pages"], result["scanned"]
+    except (ValueError, TypeError, KeyError):
+        pages = scanned = None
+    if (
+        not isinstance(pages, list)
+        or not all(isinstance(page, str) for page in pages)
+        or type(scanned) is not int
+        or not 0 <= scanned <= len(pages)
+    ):
+        raise ConversionError("pdftext backend returned an invalid result")
+    return pages, scanned
+
+
+def _thai_damaged(pages: list[str]) -> bool:
+    """Check each page too, so one healthy word cannot clear damaged pages."""
+    return any(thai_looks_damaged(page) for page in pages) or thai_looks_damaged(
+        "\n".join(pages)
+    )
+
+
+def _fast_text_is_trustworthy(pages: list[str], scanned_pages: int = 0) -> bool:
     """Decide whether pypdfium2's output can stand in for Docling's.
 
     Two ways it cannot: the file is a scan with no text layer, or the text
     layer exists but its Thai came out stripped of marks. Neither condition
     raises, so both have to be tested before direct text is accepted.
     """
-    if not pages:
+    if not pages or scanned_pages:
         return False
 
     empty = sum(len(p.strip()) < EMPTY_PAGE_CHARS for p in pages)
     if empty / len(pages) > SCAN_PAGE_FRACTION:
         return False
 
-    return not thai_looks_damaged("\n".join(pages))
+    return not _thai_damaged(pages)
 
 
 def backend_for(path: Path, *, docling: bool = False) -> str:
@@ -1334,7 +1443,6 @@ def _sample_images(
     limit: int = DETECT_PAGES,
     scale: float = OCR_RENDER_SCALE,
     limits: ConversionLimits = DEFAULT_LIMITS,
-    name: str | None = None,
 ):
     """Yield page images to detect from. Handles images as well as PDFs.
 
@@ -1343,23 +1451,20 @@ def _sample_images(
     through that path failed every image file in the folder, which is a
     regression this function exists to not repeat.
     """
-    name = _display_name(path, name)
+    name = path.name
     if path.suffix.lower() != ".pdf":
         from PIL import Image
 
         try:
             with Image.open(path, formats=IMAGE_FORMATS) as img:
-                _check_limit(
-                    img.width * img.height,
-                    limits.max_page_pixels,
-                    "image pixel",
-                    name,
-                )
-                yield img.convert("RGB")
+                for number, page in enumerate(image_pages(img, limits, path), 1):
+                    yield page.convert("RGB")
+                    if number >= limit:
+                        return
         except ConversionError:
             raise
-        except Exception:
-            return
+        except Exception as exc:
+            raise ConversionError(f"cannot read image: {name}: {exc}") from exc
         return
 
     import pypdfium2
@@ -1373,7 +1478,7 @@ def _sample_images(
             page = doc[index]
             try:
                 _check_limit(
-                    _page_pixels(page, scale),
+                    page_pixels(page, scale),
                     limits.max_page_pixels,
                     "rendered page pixel",
                     name,
@@ -1389,7 +1494,6 @@ def script_of(
     path: Path,
     lang: str | None = None,
     limits: ConversionLimits = DEFAULT_LIMITS,
-    name: str | None = None,
 ) -> str | None:
     """Which script this document is in, or None if it cannot be determined.
 
@@ -1405,7 +1509,7 @@ def script_of(
 
     from .ocr import NoEngineFor, detect_script
 
-    for image in _sample_images(path, limits=limits, name=name):
+    for image in _sample_images(path, limits=limits):
         try:
             return detect_script(image)
         except NoEngineFor:
@@ -1464,13 +1568,8 @@ def _convert_snapshot(
             backend,
         )
     if backend == "pypdfium2":
-        try:
-            pages = _via_pypdfium2(input_path, limits=active_limits)
-        except ConversionError:
-            raise
-        except Exception:
-            pages = []
-        if _fast_text_is_trustworthy(pages):
+        pages, scanned_pages = _read_pdf_text(input_path, active_limits)
+        if _fast_text_is_trustworthy(pages, scanned_pages):
             return format_pdf_text_pages(pages), backend
         if not ocr:
             raise ConversionError(
@@ -1492,10 +1591,10 @@ def _convert_snapshot(
     force_ocr = False
     if ocr and source_path.suffix.lower() == ".pdf":
         try:
-            pages = _via_pypdfium2(input_path, limits=active_limits)
-        except Exception:
+            pages, _ = _read_pdf_text(input_path, active_limits)
+        except ConversionError:
             pages = []
-        force_ocr = bool(pages) and thai_looks_damaged("\n".join(pages))
+        force_ocr = bool(pages) and _thai_damaged(pages)
     markdown = _run_isolated_backend(
         "docling",
         input_path,
@@ -1558,6 +1657,13 @@ def convert(
             )
         except ConversionError as error:
             raise _restore_source_name(error, input_path, path) from error
+        except OSError as error:
+            # A truncated image or unreadable file is the input's fault.
+            raise _restore_source_name(
+                ConversionError(f"cannot read input: {name}: {error}"),
+                input_path,
+                path,
+            ) from error
 
     _check_limit(len(markdown), active_limits.max_output_chars, "output", name)
     content = pdf_content(markdown) if path.suffix.lower() == ".pdf" else markdown

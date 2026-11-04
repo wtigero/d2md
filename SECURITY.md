@@ -57,10 +57,11 @@ least privileges and filesystem access practical, keep resource limits
 enabled, and review optional model downloads before first use.
 
 On macOS and Linux the MarkItDown worker also stops once its memory passes
-4 GiB. Windows and Docling workers have no memory ceiling.
+4 GiB, and so does the worker that reads PDF text layers. Windows and Docling
+workers have no memory ceiling.
 
-The default MarkItDown and Docling backend job deadline is 30 minutes (1,800
-seconds). Only the explicit trusted-input `--unsafe-unlimited` mode makes this
+The default MarkItDown, PDF text, and Docling job deadline is 30 minutes (1,800
+seconds). Direct `--ocr` runs in the calling process and has no deadline. Only the explicit trusted-input `--unsafe-unlimited` mode makes this
 deadline unlimited; it does not remove the need for OS, container, or job-level
 controls.
 
