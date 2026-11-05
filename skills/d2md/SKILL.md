@@ -32,8 +32,9 @@ This exits 0 even when optional parts are missing. Read:
 - `ocr.install_command`, `docling.install_command`: the exact command to give
   the user if a profile is missing.
 
-If the command itself fails (`d2md` missing or the flag unknown), tell the user
-to install or upgrade: `uv tool install d2md`.
+If `d2md` is missing, tell the user to run `uv tool install d2md`. If the flag
+is unknown or `d2md --version` is older than 0.1.3, tell them to run
+`uv tool upgrade d2md`; `uv tool install` keeps an installed version.
 
 ## 2. Convert
 
@@ -46,19 +47,22 @@ d2md --stdout -- report.pdf
 `--stdout` takes exactly one input and cannot be combined with `-o`,
 `--force` or `--json`. On failure it prints `FAILED ...` to stderr and exits 1.
 
-Several files or a folder, with a JSON report. Always pass `-o` to a scratch
-directory, or the Markdown lands in `./md-out` inside the user's project:
+Several files or a folder, with a JSON report. Always pass `-o` to a new, empty
+directory, or the Markdown lands in `./md-out` inside the user's project. A
+reused directory hands back stale files from an earlier run. `realpath` matters
+on macOS, where `/tmp` and `/var` are symlinks that d2md refuses:
 
 ```bash
-d2md -o /tmp/d2md-out --json -- docs/
+out=$(realpath "$(mktemp -d)")
+d2md -o "$out" --json -- docs/
 ```
 
 Parse stdout as JSON before looking at the exit code: a run with failures still
 prints the full report and exits 1. Check both arrays:
 
 - `results[]`: `{source, output, status, ...}` where `status` is `converted` or
-  `skipped`. `skipped` means `output` already exists from an earlier run; read
-  it, or add `--force` to reconvert.
+  `skipped`. In a new directory, `skipped` means the same file was listed
+  twice; its `output` is the one already converted.
 - `errors[]`: `{source, message}` for every file that failed. Failed files do
   not appear in `results[]`.
 - `summary` gives `converted`, `failed` and `skipped` counts; `ok` is false when
@@ -110,5 +114,9 @@ crosses pages. PowerPoint output uses `<!-- Slide number: N -->`.
 - Put all options first, then `--`, then paths. A filename that starts with `-`
   is otherwise refused as an ambiguous option, and `--` keeps a hostile name
   from being read as a flag. A `./` prefix also works.
+- d2md refuses a path that passes through a symlink. On macOS that includes
+  files under `/tmp` and `/var/folders`. On `symbolic link inputs are
+  rejected`, rerun with `"$(realpath file)"` if you put the file there
+  yourself; otherwise tell the user.
 - Do not use `--unsafe-unlimited` on documents you did not create. It removes
   the size, page and pixel limits that protect against hostile files.

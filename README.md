@@ -209,7 +209,14 @@ For a shorter human-readable OCR-only view, run `d2md --engines`.
 
 Coding agents such as Claude Code and Codex can load the
 [d2md agent skill](https://github.com/wtigero/d2md/blob/main/skills/d2md/SKILL.md),
-which tells them when to call d2md and how to read its output.
+which tells them when to call d2md and how to read its output. For Claude Code,
+save it to your skills folder:
+
+```bash
+curl -fsSL --create-dirs -o ~/.claude/skills/d2md/SKILL.md https://raw.githubusercontent.com/wtigero/d2md/main/skills/d2md/SKILL.md
+```
+
+Other agents read the same file from their own skills folder.
 
 ## OCR scanned documents
 
