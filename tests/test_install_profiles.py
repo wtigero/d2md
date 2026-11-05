@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # Python 3.10
 
 ROOT = Path(__file__).parents[1]
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.2.1/"
+RELEASE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.2.2/"
 # Dated evidence stays pinned to the release it was measured on.
 EVIDENCE_BLOB_URL = "https://github.com/wtigero/d2md/blob/v0.1.1/"
 HISTORICAL_RESULTS = (
