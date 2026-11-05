@@ -8,8 +8,8 @@ from shared folders.
 
 | Version | Security support |
 | --- | --- |
-| `0.1.x` | Supported |
-| `<0.1.0` | Not supported |
+| `0.2.x` | Supported |
+| `<0.2.0` | Not supported |
 
 Security fixes are evaluated against the latest supported release line. A
 development checkout may change before publication.

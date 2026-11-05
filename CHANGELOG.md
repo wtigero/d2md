@@ -6,7 +6,7 @@ All notable changes are recorded here.
 
 No changes yet.
 
-## [0.1.3]
+## [0.2.0]
 
 - Refuse a PDF whose short pages are mostly image as needing OCR, even under
   the 10% blank-page tolerance. Images inside forms and scans stored as strips
