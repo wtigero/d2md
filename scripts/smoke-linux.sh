@@ -71,9 +71,9 @@ repository_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repository_root"
 
 python_command=""
-for candidate in python3.13 python3.12 python3.11 python3.10 python3 python; do
+for candidate in python3.13 python3.12 python3.11 python3.10 python3.14 python3 python; do
     if command -v "$candidate" >/dev/null 2>&1 &&
-        "$candidate" -c 'import sys; raise SystemExit(not ((3, 10) <= sys.version_info[:2] <= (3, 13)))'
+        "$candidate" -c 'import sys; raise SystemExit(not ((3, 10) <= sys.version_info[:2] <= (3, 14)))'
     then
         python_command=$candidate
         break
@@ -81,7 +81,7 @@ for candidate in python3.13 python3.12 python3.11 python3.10 python3 python; do
 done
 
 if [[ -z "$python_command" ]]; then
-    echo "Python 3.10 through 3.13 is required." >&2
+    echo "Python 3.10 through 3.14 is required." >&2
     exit 1
 fi
 
