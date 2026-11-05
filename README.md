@@ -48,8 +48,9 @@ still decide which capability is allowed to run.
 
 ## Minimum requirements and tested resource floor
 
-Python 3.10 through 3.13 is supported. Every profile works on CPU; a GPU is not
-required. MPS, CUDA, and XPU are optional device selections for Docling only;
+Python 3.10 through 3.14 is supported. On macOS, Python 3.14 needs Apple silicon
+and macOS 14 or later, because ONNX Runtime ships no other 3.14 build for macOS.
+Every profile works on CPU; a GPU is not required. MPS, CUDA, and XPU are optional device selections for Docling only;
 the published hardware evidence covers MPS and CUDA, not XPU. Direct OCR does
 not load PyTorch.
 
@@ -326,7 +327,7 @@ CPU.
 
 ## Installation notes
 
-The package supports Python 3.10 through 3.13. To replace an existing profile,
+The package supports Python 3.10 through 3.14. To replace an existing profile,
 repeat its command with `--force`.
 
 ### Source and release verification

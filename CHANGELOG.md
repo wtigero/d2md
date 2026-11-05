@@ -4,7 +4,8 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
-No changes yet.
+- Support Python 3.14. On macOS it needs Apple silicon and macOS 14 or later,
+  where ONNX Runtime publishes 3.14 builds.
 
 ## [0.2.1]
 

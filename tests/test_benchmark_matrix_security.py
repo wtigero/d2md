@@ -844,7 +844,8 @@ def test_promotion_converts_deeply_nested_raw_json_to_validation_error(tmp_path)
     raw = tmp_path / "raw.json"
     raw.write_text("[" * 10_000 + "0" + "]" * 10_000, encoding="utf-8")
 
-    with pytest.raises(ValidationError, match="nesting"):
+    # Python 3.14's json decodes this depth; earlier versions hit their limit.
+    with pytest.raises(ValidationError, match="nesting|must be an object"):
         promote_results(
             [raw],
             tmp_path / "promoted",

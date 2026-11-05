@@ -26,7 +26,7 @@ Set-Location $RepositoryRoot
 $PythonCommand = $null
 $PythonPrefix = @()
 if (Get-Command py -ErrorAction SilentlyContinue) {
-    foreach ($Version in @('3.13', '3.12', '3.11', '3.10')) {
+    foreach ($Version in @('3.13', '3.12', '3.11', '3.10', '3.14')) {
         & py "-$Version" -c 'raise SystemExit(0)' 2>$null
         if ($LASTEXITCODE -eq 0) {
             $PythonCommand = 'py'
@@ -36,13 +36,13 @@ if (Get-Command py -ErrorAction SilentlyContinue) {
     }
 }
 if (-not $PythonCommand -and (Get-Command python -ErrorAction SilentlyContinue)) {
-    & python -c 'import sys; raise SystemExit(not ((3, 10) <= sys.version_info[:2] <= (3, 13)))'
+    & python -c 'import sys; raise SystemExit(not ((3, 10) <= sys.version_info[:2] <= (3, 14)))'
     if ($LASTEXITCODE -eq 0) {
         $PythonCommand = 'python'
     }
 }
 if (-not $PythonCommand) {
-    throw 'Python 3.10 through 3.13 is required. Install Python, then run this script again.'
+    throw 'Python 3.10 through 3.14 is required. Install Python, then run this script again.'
 }
 
 Write-Host 'Creating the isolated full-test environment...'
