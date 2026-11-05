@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterator
 from contextlib import nullcontext, redirect_stdout, suppress
 from dataclasses import dataclass
 import errno
@@ -34,9 +33,11 @@ from .convert import (  # noqa: E402
     UNLIMITED_LIMITS,
     ConversionError,
     ConversionLimits,
+    _assert_no_link_components,
     _file_identity,
     _is_link_or_reparse,
     _lexical_absolute,
+    _path_chain,
     convert,
 )
 
@@ -234,27 +235,6 @@ def collect(
     return files, failures
 
 
-def _path_chain(path: Path) -> Iterator[Path]:
-    absolute = _lexical_absolute(path)
-    current = Path(absolute.anchor)
-    for component in absolute.parts[1:]:
-        current /= component
-        yield current
-
-
-def _assert_no_link_components(path: Path) -> None:
-    """Reject symlinks and Windows junction/reparse points in a full path."""
-    for component in _path_chain(path):
-        try:
-            details = component.lstat()
-        except FileNotFoundError:
-            raise ConversionError(f"path component does not exist: {component}")
-        except OSError as exc:
-            raise ConversionError(f"cannot inspect path safely: {component}: {exc}") from exc
-        if _is_link_or_reparse(details):
-            raise ConversionError(f"symbolic link or reparse point is rejected: {component}")
-
-
 def _secure_directory_flags() -> int:
     no_follow = getattr(os, "O_NOFOLLOW", None)
     directory = getattr(os, "O_DIRECTORY", None)
@@ -401,7 +381,9 @@ def _open_output_directory_portable(path: Path) -> OutputDirectory:
 def _assert_output_directory_unchanged(output: OutputDirectory) -> None:
     if output.descriptor is not None:
         return
-    _assert_no_link_components(output.path)
+    _assert_no_link_components(
+        output.path, "symbolic link or reparse point is rejected"
+    )
     try:
         details = output.path.lstat()
     except OSError as exc:

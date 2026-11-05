@@ -817,6 +817,35 @@ def test_short_plain_text_converts(tmp_path):
     assert convert(note).markdown == "hello world"
 
 
+def _short_docx(path):
+    import docx
+
+    document = docx.Document()
+    document.add_paragraph("Approved by Ann.")
+    document.save(path)
+
+
+@pytest.mark.parametrize(
+    "name,write",
+    [
+        ("memo.docx", _short_docx),
+        (
+            "page.html",
+            lambda path: path.write_text("<p>Meeting moved.</p>", encoding="utf-8"),
+        ),
+    ],
+)
+def test_short_office_and_web_documents_convert(tmp_path, name, write):
+    """Only PDF and image routes can be a scan, so a short memo is a document."""
+    source = tmp_path / name
+    write(source)
+
+    result = convert(source)
+
+    assert result.backend == "markitdown"
+    assert result.markdown.strip() in {"Approved by Ann.", "Meeting moved."}
+
+
 def test_empty_plain_text_is_an_error(tmp_path):
     tiny = tmp_path / "tiny.txt"
     tiny.write_text(" \n")
