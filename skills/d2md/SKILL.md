@@ -6,7 +6,7 @@ description: Convert PDF, DOCX, XLSX, PPTX, HTML, EPUB, MSG and text files to Ma
 # d2md
 
 `d2md` is an offline document-to-Markdown CLI. It needs no API key or model.
-This skill describes d2md 0.1.3 or later (`d2md --version`).
+This skill describes d2md 0.2.0 or later (`d2md --version`).
 
 ## When to use it
 
@@ -32,9 +32,10 @@ This exits 0 even when optional parts are missing. Read:
 - `ocr.install_command`, `docling.install_command`: the exact command to give
   the user if a profile is missing.
 
-If `d2md` is missing, tell the user to run `uv tool install d2md`. If the flag
-is unknown or `d2md --version` is older than 0.1.3, tell them to run
-`uv tool upgrade d2md`; `uv tool install` keeps an installed version.
+If `d2md` is missing, tell the user to run `uv tool install d2md`. If
+`d2md --version` is older than 0.2.0, tell them to upgrade the way they
+installed it: `uv tool upgrade d2md` if `uv tool list` shows d2md, otherwise
+`pip install -U d2md`. `uv tool install` keeps an installed version.
 
 ## 2. Convert
 
@@ -45,7 +46,8 @@ d2md --stdout -- report.pdf
 ```
 
 `--stdout` takes exactly one input and cannot be combined with `-o`,
-`--force` or `--json`. On failure it prints `FAILED ...` to stderr and exits 1.
+`--force` or `--json`. On failure stdout is empty, the reason goes to stderr,
+and the exit code is 1, or 2 for a usage error.
 
 Several files or a folder, with a JSON report. Always pass `-o` to a new, empty
 directory, or the Markdown lands in `./md-out` inside the user's project. A
@@ -58,13 +60,16 @@ d2md -o "$out" --json -- docs/
 ```
 
 Parse stdout as JSON before looking at the exit code: a run with failures still
-prints the full report and exits 1. Check both arrays:
+prints the full report and exits 1. A setup error, such as a refused `-o`, also
+prints the report but exits 2. A usage error, such as `--lang` without `--ocr`,
+exits 2 with only a message on stderr and no JSON. Check both arrays:
 
 - `results[]`: `{source, output, status, ...}` where `status` is `converted` or
   `skipped`. In a new directory, `skipped` means the same file was listed
   twice; its `output` is the one already converted.
 - `errors[]`: `{source, message}` for every file that failed. Failed files do
-  not appear in `results[]`.
+  not appear in `results[]`. `source` is `null` when the error is not about one
+  file, such as a refused `-o` or nothing to convert.
 - `summary` gives `converted`, `failed` and `skipped` counts; `ok` is false when
   `errors[]` is not empty.
 
@@ -114,9 +119,10 @@ crosses pages. PowerPoint output uses `<!-- Slide number: N -->`.
 - Put all options first, then `--`, then paths. A filename that starts with `-`
   is otherwise refused as an ambiguous option, and `--` keeps a hostile name
   from being read as a flag. A `./` prefix also works.
-- d2md refuses a path that passes through a symlink. On macOS that includes
-  files under `/tmp` and `/var/folders`. On `symbolic link inputs are
-  rejected`, rerun with `"$(realpath file)"` if you put the file there
+- d2md refuses a path that passes through a symlink, for inputs and for `-o`.
+  On macOS that includes `/tmp` and `/var/folders`. On `symbolic link inputs
+  are rejected` or `symbolic link or reparse point output directory is
+  rejected`, rerun with `"$(realpath path)"` if you created that path
   yourself; otherwise tell the user.
 - Do not use `--unsafe-unlimited` on documents you did not create. It removes
   the size, page and pixel limits that protect against hostile files.
