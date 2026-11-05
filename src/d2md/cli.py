@@ -436,7 +436,11 @@ def _destination_status(output: OutputDirectory, filename: str) -> str:
             raise ConversionError(
                 f"cannot inspect output safely: {filename}: {exc}"
             ) from exc
-    return "symlink" if _is_link_or_reparse(details) else "existing"
+    if _is_link_or_reparse(details):
+        return "symlink"
+    if not stat.S_ISREG(details.st_mode):
+        raise ConversionError(f"output path is not a regular file: {filename}")
+    return "existing"
 
 
 def _safe_output_filename(filename: str) -> None:

@@ -4,7 +4,9 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
-No changes yet.
+- Report an input as failed when a folder or other non-file already has its
+  output name. 0.2.0 reported it as skipped and the run as successful, though
+  nothing was converted.
 
 ## [0.2.0]
 

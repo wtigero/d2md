@@ -490,3 +490,24 @@ def test_a_full_batch_stops_converting(tmp_path, monkeypatch, capsys):
     assert cli.main([str(inbox), "-o", str(tmp_path / "out")]) == 1
     assert len(calls) == 2
     assert "rerun to continue" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("force", [[], ["--force"]])
+def test_directory_at_output_name_fails_instead_of_skipping(tmp_path, capsys, force):
+    source = tmp_path / "notes.txt"
+    source.write_text("notes document body", encoding="utf-8")
+    outdir = tmp_path / "out"
+    (outdir / "notes.md").mkdir(parents=True)
+
+    code = cli.main([str(source), "-o", str(outdir), "--json", *force])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["results"] == []
+    assert payload["errors"] == [
+        {
+            "source": str(source),
+            "message": "output path is not a regular file: notes.md",
+        }
+    ]
+    assert (outdir / "notes.md").is_dir()
