@@ -4,6 +4,9 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+- Accept short Office, web, and email documents, such as a one-line memo.
+  Only an empty one fails. 0.2.0 refused anything under 20 characters as a
+  probable scan.
 - Report an input as failed when a folder or other non-file already has its
   output name. 0.2.0 reported it as skipped and the run as successful, though
   nothing was converted.

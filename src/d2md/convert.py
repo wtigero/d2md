@@ -6,6 +6,7 @@ before it counts as a success.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from html import escape
 import io
@@ -261,17 +262,25 @@ def _lexical_absolute(path: Path) -> Path:
     return Path(os.path.abspath(os.fspath(path)))
 
 
-def _assert_no_link_components(path: Path) -> None:
+def _path_chain(path: Path) -> Iterator[Path]:
     absolute = _lexical_absolute(path)
     current = Path(absolute.anchor)
     for component in absolute.parts[1:]:
         current /= component
+        yield current
+
+
+def _assert_no_link_components(
+    path: Path, refusal: str = "symbolic link inputs are rejected"
+) -> None:
+    """Reject symlinks and Windows junction/reparse points in a full path."""
+    for component in _path_chain(path):
         try:
-            details = current.lstat()
+            details = component.lstat()
         except OSError as exc:
-            raise ConversionError(f"cannot inspect input {path.name}: {exc}") from exc
+            raise ConversionError(f"cannot inspect path safely: {component}: {exc}") from exc
         if _is_link_or_reparse(details):
-            raise ConversionError(f"symbolic link inputs are rejected: {current}")
+            raise ConversionError(f"{refusal}: {component}")
 
 
 def _open_verified_input_portable(path: Path) -> int:
@@ -1668,7 +1677,8 @@ def convert(
     _check_limit(len(markdown), active_limits.max_output_chars, "output", name)
     content = pdf_content(markdown) if path.suffix.lower() == ".pdf" else markdown
     content_chars = len(content.strip())
-    if backend == "plain":
+    # Only PDF and image routes can be a scan; a short memo is still a document.
+    if backend in ("plain", "markitdown"):
         if not content_chars:
             raise ConversionError(f"{name} is empty")
     elif content_chars < MIN_CHARS:
