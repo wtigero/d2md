@@ -4,6 +4,13 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.2.1]
+
+- Add an agent skill, `skills/d2md/SKILL.md`, that tells coding agents when to
+  call d2md and how to read its JSON report. The README shows how to install
+  it for Claude Code.
 - Accept short Office, web, and email documents, such as a one-line memo.
   Only an empty one fails. 0.2.0 refused anything under 20 characters as a
   probable scan.
