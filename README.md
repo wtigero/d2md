@@ -277,11 +277,10 @@ time.
 
 ### Thai and English scans with Typhoon
 
-This option is available in the development version. Install the Typhoon
-extra and pull the model in a running Ollama installation.
+Install the Typhoon extra and pull the model in a running Ollama installation.
 
 ```bash
-uv tool install --force "d2md[typhoon] @ git+https://github.com/wtigero/d2md.git"
+uv tool install --force "d2md[typhoon]"
 ollama pull scb10x/typhoon-ocr1.5-3b
 d2md scan.pdf --ocr --ocr-engine typhoon -o converted
 ```
@@ -353,14 +352,14 @@ repeat its command with `--force`.
 
 ### Source and release verification
 
-For source installs or verifying the exact `v0.2.2` release tag, use:
+For source installs or verifying the exact `v0.3.0` release tag, use:
 
 ```bash
-uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.2.2"
+uv tool install "d2md @ git+https://github.com/wtigero/d2md.git@v0.3.0"
 ```
 
 Tags and public releases are promoted through the gates in
-[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.2.2/docs/release-process.md).
+[docs/release-process.md](https://github.com/wtigero/d2md/blob/v0.3.0/docs/release-process.md).
 
 For repository development, create an isolated environment and install the
 test plus optional dependencies:
@@ -517,7 +516,7 @@ the platform-specific output safeguards above remain active.
 ## Manual verification
 
 Synthetic examples cover every accepted extension. See
-[examples/README.md](https://github.com/wtigero/d2md/blob/v0.2.2/examples/README.md) for the manifest and direct driver.
+[examples/README.md](https://github.com/wtigero/d2md/blob/v0.3.0/examples/README.md) for the manifest and direct driver.
 See the dated [manual verification results](https://github.com/wtigero/d2md/blob/v0.1.1/docs/verification.md) for the
 tested operating systems, profiles, devices, and fixture counts.
 
@@ -547,7 +546,7 @@ verify expected markers. No CI is required for these manual release checks.
 ## Controlled performance measurements
 
 The manual smoke checks above prove functionality; they are not speed claims.
-The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.2.2/bench/README.md) measures the current
+The [production benchmark matrix](https://github.com/wtigero/d2md/blob/v0.3.0/bench/README.md) measures the current
 explicit routes by operating system, CPU/accelerator device, document type,
 method, and language. It records initialization separately from warm timing,
 quality and resource metrics, and promotes results only after all six required
@@ -609,8 +608,8 @@ detection can interpret CP874 as an unrelated encoding. `d2md` validates a
 CP874 candidate by its Thai character ratio before accepting it.
 
 The research that motivated these guards is preserved in
-[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.2.2/docs/findings.md). OCR corpus methodology lives in
-[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.2.2/docs/ocr.md). Those research measurements are historical
+[docs/findings.md](https://github.com/wtigero/d2md/blob/v0.3.0/docs/findings.md). OCR corpus methodology lives in
+[docs/ocr.md](https://github.com/wtigero/d2md/blob/v0.3.0/docs/ocr.md). Those research measurements are historical
 evidence, not performance claims for the current installation profiles.
 
 ## Limitations

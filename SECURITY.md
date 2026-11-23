@@ -8,6 +8,7 @@ from shared folders.
 
 | Version | Security support |
 | --- | --- |
+| `0.3.x` | Supported |
 | `0.2.x` | Supported |
 | `<0.2.0` | Not supported |
 
@@ -83,6 +84,10 @@ declared document family. Generic or masquerading ZIP archives are rejected,
 and recursive ZIP conversion is disabled in the fallback parser.
 Content-detected PDFs and supported images receive their page and pixel checks
 before the matching fallback parser is enabled.
+
+Typhoon OCR sends rendered pages to Ollama over a loopback address. Run the
+model in a local Ollama instance you control. Put an optional OCR cache in a
+private directory because it stores transcribed page text.
 
 General usage questions and ordinary conversion failures belong in the normal
 project support channels, not in private vulnerability reports.
