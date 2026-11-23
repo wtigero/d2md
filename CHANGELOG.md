@@ -4,6 +4,8 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+## [0.3.0]
+
 - Read Thai and English scans with local Ollama using `--ocr --ocr-engine typhoon`.
   Use `--ocr-cache DIR` to reuse completed pages on a retry.
 - Set the input size limit with `--max-input-mib`.
