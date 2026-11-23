@@ -275,6 +275,23 @@ Apple Vision is supplied by macOS and needs no separate OCR weight download.
 RapidOCR may retrieve model files when a configured model is used for the first
 time.
 
+### Thai scans on Windows
+
+For scanned Thai PDFs on Windows, use Typhoon OCR 1.5 3B as a separate local
+workflow. Download the official model with Ollama.
+
+```bash
+ollama pull scb10x/typhoon-ocr1.5-3b
+```
+
+Render each PDF page to an image. Pass each image to Ollama with the prompt in
+the [Typhoon OCR model card](https://ollama.com/scb10x/typhoon-ocr1.5-3b).
+Typhoon returns Markdown directly. For long PDFs, save each page separately so
+you can check coverage and retry failed pages.
+
+Check the transcription against the scan, especially tables and text inside
+figures. Typhoon can summarize figures and miss text in them.
+
 ## Layout and tables with Docling
 
 Use Docling when layout, heading, reading-order, or table reconstruction is
