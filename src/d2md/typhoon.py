@@ -10,7 +10,7 @@ import re
 from typing import TYPE_CHECKING, Callable
 from urllib.parse import urlsplit
 
-from .capabilities import install_command, module_available
+from .capabilities import ensure_typhoon_available
 from .errors import ConversionError
 
 if TYPE_CHECKING:
@@ -78,10 +78,7 @@ def local_endpoint() -> tuple[str, int]:
 
 class Typhoon:
     def __init__(self, cache: PageCache | None = None):
-        if not module_available("PIL"):
-            raise ConversionError(
-                f"Typhoon needs Pillow. Run: {install_command('typhoon', force=True)}"
-            )
+        ensure_typhoon_available()
         self.host, self.port = local_endpoint()
         self.cache = cache
         self.digest: str | None = None
@@ -150,6 +147,14 @@ class Typhoon:
         fence = re.fullmatch(r"```(?:markdown|md)[ \t]*\r?\n(.*?)\r?\n```", text, re.DOTALL)
         return fence[1].strip() if fence else text
 
+    def _stable_model_digest(self) -> str:
+        digest = self._model_digest()
+        if self.digest is None:
+            self.digest = digest
+        elif self.digest != digest:
+            raise ConversionError("the Ollama model changed during OCR; rerun the conversion")
+        return digest
+
     def __call__(self, image: "Image") -> str:
         self.page_number += 1
         try:
@@ -165,9 +170,14 @@ class Typhoon:
             }).encode("utf-8")
             if self.cache is None:
                 return self._recognize(body)
-            if self.digest is None:
-                self.digest = self._model_digest()
-            key = sha256(self.digest.encode("utf-8") + b"\0" + body).hexdigest()
-            return self.cache(key, lambda: self._recognize(body))
+            digest = self._stable_model_digest()
+            key = sha256(digest.encode("utf-8") + b"\0" + body).hexdigest()
+
+            def recognize() -> str:
+                text = self._recognize(body)
+                self._stable_model_digest()
+                return text
+
+            return self.cache(key, recognize)
         except ConversionError as exc:
             raise ConversionError(f"Typhoon page {self.page_number}: {exc}") from exc

@@ -27,3 +27,10 @@ def ensure_docling_available() -> None:
             f"Docling is not installed. Run: {install_command('docling', force=True)}, "
             "then rerun with --docling"
         )
+
+
+def ensure_typhoon_available() -> None:
+    if not module_available("PIL"):
+        raise ConversionError(
+            f"Typhoon needs Pillow. Run: {install_command('typhoon', force=True)}"
+        )

@@ -289,9 +289,10 @@ d2md uses a PDF's text layer when it can. For scans, it sends one page at a
 time to Ollama on loopback. It uses port 11434 by default and accepts a
 loopback address in `OLLAMA_HOST`. Use
 `--ocr-cache DIR` and repeat the same command to reuse completed pages.
-Keep the cache private because it contains transcribed text. For PDFs above
-100 MiB, set a per-file limit with `--max-input-mib 150` or another suitable
-value. Check tables and figure text against the scan.
+Use a private directory under a parent you control for the cache. It contains
+transcribed text. For PDFs above 100 MiB, set a per-file limit with
+`--max-input-mib 150` or another suitable value. Check tables and figure text
+against the scan.
 [Typhoon OCR model card](https://ollama.com/scb10x/typhoon-ocr1.5-3b)
 
 ## Layout and tables with Docling
