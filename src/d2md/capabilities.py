@@ -4,7 +4,7 @@ from .errors import ConversionError
 from .ocr import available_engines
 
 
-def install_command(extra: Literal["ocr", "docling"], *, force: bool) -> str:
+def install_command(extra: Literal["ocr", "docling", "typhoon"], *, force: bool) -> str:
     option = " --force" if force else ""
     return f'uv tool install{option} "d2md[{extra}]"'
 
@@ -26,4 +26,11 @@ def ensure_docling_available() -> None:
         raise ConversionError(
             f"Docling is not installed. Run: {install_command('docling', force=True)}, "
             "then rerun with --docling"
+        )
+
+
+def ensure_typhoon_available() -> None:
+    if not module_available("PIL"):
+        raise ConversionError(
+            f"Typhoon needs Pillow. Run: {install_command('typhoon', force=True)}"
         )

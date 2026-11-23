@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 from contextlib import nullcontext, redirect_stdout, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import errno
+from functools import partial
+from hashlib import sha256
 import json
 import logging
 import os
@@ -14,6 +16,7 @@ import unicodedata
 import uuid
 import warnings
 from pathlib import Path
+from typing import Callable
 
 # Read by transformers when docling first imports it, which happens inside a
 # conversion — so an environment default is enough, and unlike the warning and
@@ -37,6 +40,7 @@ from .convert import (  # noqa: E402
     _file_identity,
     _is_link_or_reparse,
     _lexical_absolute,
+    _open_verified_input,
     _path_chain,
     convert,
 )
@@ -425,6 +429,79 @@ def _destination_status(output: OutputDirectory, filename: str) -> str:
     return "existing"
 
 
+def _ocr_cache_checksum(key: str, text: str) -> str:
+    return sha256(f"{key}\0{text}".encode("utf-8")).hexdigest()
+
+
+def _ocr_cache_file_state(details: os.stat_result) -> tuple[tuple[int, int], int, int]:
+    return _file_identity(details), details.st_size, details.st_mtime_ns
+
+
+def _cached_ocr_page(directory: Path, key: str, recognize: Callable[[], str]) -> str:
+    from .typhoon import MAX_REPLY_BYTES
+
+    filename = f"typhoon-{key}.cache"
+    entry_limit = MAX_REPLY_BYTES + 256
+    output = _open_output_directory(directory)
+    try:
+        status = _destination_status(output, filename)
+        if status == "missing":
+            text = recognize()
+            record = {
+                "version": 1,
+                "text": text,
+                "checksum": _ocr_cache_checksum(key, text),
+            }
+            _write_output(
+                output, filename, json.dumps(record, ensure_ascii=False), force=True
+            )
+            return text
+        if status != "existing":
+            raise ConversionError(f"OCR cache entry must be a regular file: {filename}")
+
+        try:
+            if output.descriptor is None:
+                descriptor = _open_verified_input(output.path / filename)
+            else:
+                descriptor = os.open(
+                    filename,
+                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=output.descriptor,
+                )
+            with os.fdopen(descriptor, "rb") as stream:
+                before = os.fstat(stream.fileno())
+                if not stat.S_ISREG(before.st_mode):
+                    raise ConversionError(f"OCR cache entry must be a regular file: {filename}")
+                data = stream.read(entry_limit + 1)
+                after = os.fstat(stream.fileno())
+                _assert_output_directory_unchanged(output)
+                path = output.path / filename if output.descriptor is None else filename
+                current = os.lstat(path, dir_fd=output.descriptor)
+            state = _ocr_cache_file_state(before)
+            if (
+                state != _ocr_cache_file_state(after)
+                or state != _ocr_cache_file_state(current)
+                or before.st_ctime_ns != after.st_ctime_ns
+                or not stat.S_ISREG(current.st_mode)
+                or _is_link_or_reparse(current)
+            ):
+                raise ConversionError(f"OCR cache entry changed while reading: {filename}")
+            if len(data) <= entry_limit:
+                record = json.loads(data)
+                if isinstance(record, dict) and record.get("version") == 1:
+                    text = record.get("text")
+                    if (
+                        isinstance(text, str)
+                        and record.get("checksum") == _ocr_cache_checksum(key, text)
+                    ):
+                        return text
+        except (OSError, ValueError, RecursionError) as exc:
+            raise ConversionError(f"cannot read OCR cache entry: {filename}: {exc}") from exc
+        raise ConversionError(f"invalid OCR cache entry: {filename}")
+    finally:
+        output.close()
+
+
 def _safe_output_filename(filename: str) -> None:
     if (
         not filename
@@ -727,6 +804,16 @@ def _configure_console_streams(
             reconfigure(encoding="utf-8", errors="backslashreplace")
 
 
+def _positive_mib(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError:
+        number = 0
+    if not 1 <= number <= (sys.maxsize // (1024 * 1024)):
+        raise argparse.ArgumentTypeError("expected a positive input limit in MiB")
+    return number
+
+
 def _reject_ambiguous_option_paths(ap: argparse.ArgumentParser, argv: list[str]) -> None:
     """Reject existing option-shaped paths before argparse can interpret them."""
     for raw in argv:
@@ -787,6 +874,17 @@ def main(argv: list[str] | None = None) -> int:
         help="OCR scanned PDFs and images",
     )
     ap.add_argument(
+        "--ocr-engine",
+        choices=("native", "typhoon"),
+        help="OCR engine to use with --ocr (default: native)",
+    )
+    ap.add_argument(
+        "--ocr-cache",
+        type=Path,
+        metavar="DIR",
+        help="save completed Typhoon pages in DIR and reuse them on retry",
+    )
+    ap.add_argument(
         "--docling",
         action="store_true",
         help="use Docling for PDF/image layout, headings, and tables",
@@ -803,7 +901,14 @@ def main(argv: list[str] | None = None) -> int:
         default="auto",
         help="Docling inference device; requires --docling",
     )
-    ap.add_argument(
+    input_limits = ap.add_mutually_exclusive_group()
+    input_limits.add_argument(
+        "--max-input-mib",
+        type=_positive_mib,
+        metavar="MIB",
+        help="set only the per-file input size limit (default: 100 MiB)",
+    )
+    input_limits.add_argument(
         "--unsafe-unlimited",
         action="store_true",
         help="disable resource limits for trusted oversized inputs; symlink protections stay enabled",
@@ -847,6 +952,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.lang and not args.ocr:
         ap.error("--lang requires --ocr")
+    if args.ocr_engine and not args.ocr:
+        ap.error("--ocr-engine requires --ocr")
+    if args.ocr_engine == "typhoon" and (args.docling or args.lang):
+        ap.error("--ocr-engine typhoon cannot be combined with --docling or --lang")
+    if args.ocr_cache is not None and args.ocr_engine != "typhoon":
+        ap.error("--ocr-cache requires --ocr-engine typhoon")
     if args.device != "auto" and not args.docling:
         ap.error("--device requires --docling")
 
@@ -880,7 +991,7 @@ def main(argv: list[str] | None = None) -> int:
             return fail(message, 2)
 
     try:
-        if args.ocr:
+        if args.ocr and args.ocr_engine != "typhoon":
             ensure_ocr_available()
         if args.docling:
             ensure_docling_available()
@@ -888,6 +999,15 @@ def main(argv: list[str] | None = None) -> int:
         return fail(str(exc), 2)
 
     limits = UNLIMITED_LIMITS if args.unsafe_unlimited else DEFAULT_LIMITS
+    if args.max_input_mib is not None:
+        limits = replace(limits, max_input_bytes=args.max_input_mib * 1024 * 1024)
+    ocr_options = {}
+    if args.ocr_engine == "typhoon":
+        ocr_options["ocr_engine"] = "typhoon"
+    if args.ocr_cache is not None:
+        ocr_options["ocr_cache"] = partial(
+            _cached_ocr_page, args.ocr_cache.expanduser()
+        )
     try:
         files, failures = collect(args.paths, max_files=limits.max_files)
     except ConversionError as exc:
@@ -1053,6 +1173,7 @@ def main(argv: list[str] | None = None) -> int:
                         docling=args.docling,
                         identity=source.identity,
                         root=source.root,
+                        **ocr_options,
                     )
                 prospective_output_chars = published_output_chars + len(
                     result.markdown

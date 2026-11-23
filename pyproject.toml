@@ -25,6 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+typhoon = ["pillow>=10"]
 ocr = [
   "pillow>=10",
   "ocrmac>=1,<2; sys_platform == 'darwin'",

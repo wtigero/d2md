@@ -2,11 +2,14 @@
 
 from math import ceil
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 
 from .errors import ConversionError
 from .ocr import engine_for, read
 from .page_markers import format_pdf_text_pages
+
+if TYPE_CHECKING:
+    from PIL.Image import Image
 
 
 OCR_RENDER_SCALE = 2.0
@@ -60,10 +63,29 @@ def convert_with_ocr(
     path: Path, script: str, limits: OcrLimits
 ) -> tuple[str, str]:
     engine = engine_for(script)
+    output = convert_scanned(
+        path, limits, lambda image: read(image, script, engines=[engine]).text
+    )
+    return output, ENGINE_BACKENDS[engine]
+
+
+def convert_scanned(
+    path: Path, limits: OcrLimits, read_page: Callable[["Image"], str]
+) -> str:
+    """Render and read one page at a time, preserving source page order."""
     texts: list[str] = []
     total_chars = 0
+    is_pdf = path.suffix.lower() == ".pdf"
 
-    if path.suffix.lower() == ".pdf":
+    def append_page(page) -> None:
+        nonlocal total_chars
+        with page.convert("RGB") as image:
+            text = read_page(image)
+        texts.append(text)
+        total_chars += len(text)
+        check_limit(total_chars, limits.max_output_chars, "output", path)
+
+    if is_pdf:
         import pypdfium2
 
         document = pypdfium2.PdfDocument(str(path))
@@ -91,25 +113,11 @@ def convert_with_ocr(
                     try:
                         rendered = bitmap.to_pil()
                         try:
-                            image = rendered.convert("RGB")
-                            try:
-                                text = read(
-                                    image, script, engines=[engine]
-                                ).text
-                            finally:
-                                image.close()
+                            append_page(rendered)
                         finally:
                             rendered.close()
                     finally:
                         bitmap.close()
-                    texts.append(text)
-                    total_chars += len(text)
-                    check_limit(
-                        total_chars,
-                        limits.max_output_chars,
-                        "output",
-                        path,
-                    )
                 finally:
                     page.close()
         finally:
@@ -119,19 +127,12 @@ def convert_with_ocr(
 
         with Image.open(path, formats=IMAGE_FORMATS) as source:
             for page in image_pages(source, limits, path):
-                image = page.convert("RGB")
-                try:
-                    text = read(image, script, engines=[engine]).text
-                finally:
-                    image.close()
-                texts.append(text)
-                total_chars += len(text)
-                check_limit(total_chars, limits.max_output_chars, "output", path)
+                append_page(page)
 
-    if path.suffix.lower() == ".pdf":
+    if is_pdf:
         output = format_pdf_text_pages(texts)
     else:
         markdown = "\n\n".join(text.strip() for text in texts if text.strip()).strip()
         output = markdown + "\n" if markdown else ""
     check_limit(len(output), limits.max_output_chars, "output", path)
-    return output, ENGINE_BACKENDS[engine]
+    return output

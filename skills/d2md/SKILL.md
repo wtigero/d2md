@@ -26,7 +26,7 @@ d2md --capabilities --json
 
 This exits 0 even when optional parts are missing. Read:
 
-- `ocr.installed`, `ocr.scripts`: whether `--ocr` works and which `--lang`
+- `ocr.installed`, `ocr.scripts`: whether native `--ocr` works and which `--lang`
   values it accepts.
 - `docling.installed`: whether `--docling` works.
 - `ocr.install_command`, `docling.install_command`: the exact command to give
@@ -93,6 +93,17 @@ for a PDF, runs on every page. Instead:
 ```bash
 d2md --stdout --ocr --lang thai -- scan.pdf
 ```
+
+For Thai or English scans, if the user requests Typhoon and has the Typhoon
+extra and model installed in local Ollama, run:
+
+```bash
+d2md --stdout --ocr --ocr-engine typhoon -- scan.pdf
+```
+
+Typhoon uses its bilingual model without a `--lang` option. Add
+`--ocr-cache DIR` when the user wants to resume a long scan. The cache stores
+transcribed text.
 
 Use `--docling` only when the user asks for layout or table structure and
 `docling.installed` is true. `--docling` does not imply OCR.
