@@ -24,6 +24,7 @@ from ._onnx import disable_onnx_telemetry
 from .capabilities import (
     ensure_docling_available,
     ensure_ocr_available,
+    ensure_typhoon_available,
     install_command,
 )
 from .direct_ocr import (
@@ -1548,6 +1549,8 @@ def _convert_snapshot(
     ocr_cache: PageCache | None,
 ) -> tuple[str, str]:
     """Run preflight and conversion using only one verified input snapshot."""
+    if backend == "ocr" and ocr_engine == "typhoon":
+        ensure_typhoon_available()
     # The text route renders nothing, and direct OCR charges pixels as it renders.
     preflight_limits = (
         replace(active_limits, max_page_pixels=None, max_total_pdf_pixels=None)

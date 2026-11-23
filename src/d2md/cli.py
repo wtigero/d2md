@@ -5,6 +5,7 @@ from contextlib import nullcontext, redirect_stdout, suppress
 from dataclasses import dataclass, replace
 import errno
 from functools import partial
+from hashlib import sha256
 import json
 import logging
 import os
@@ -428,16 +429,32 @@ def _destination_status(output: OutputDirectory, filename: str) -> str:
     return "existing"
 
 
+def _ocr_cache_checksum(key: str, text: str) -> str:
+    return sha256(f"{key}\0{text}".encode("utf-8")).hexdigest()
+
+
+def _ocr_cache_file_state(details: os.stat_result) -> tuple[tuple[int, int], int, int]:
+    return _file_identity(details), details.st_size, details.st_mtime_ns
+
+
 def _cached_ocr_page(directory: Path, key: str, recognize: Callable[[], str]) -> str:
     from .typhoon import MAX_REPLY_BYTES
 
     filename = f"typhoon-{key}.cache"
+    entry_limit = MAX_REPLY_BYTES + 256
     output = _open_output_directory(directory)
     try:
         status = _destination_status(output, filename)
         if status == "missing":
             text = recognize()
-            _write_output(output, filename, json.dumps(text, ensure_ascii=False), force=True)
+            record = {
+                "version": 1,
+                "text": text,
+                "checksum": _ocr_cache_checksum(key, text),
+            }
+            _write_output(
+                output, filename, json.dumps(record, ensure_ascii=False), force=True
+            )
             return text
         if status != "existing":
             raise ConversionError(f"OCR cache entry must be a regular file: {filename}")
@@ -452,15 +469,32 @@ def _cached_ocr_page(directory: Path, key: str, recognize: Callable[[], str]) ->
                     dir_fd=output.descriptor,
                 )
             with os.fdopen(descriptor, "rb") as stream:
-                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                before = os.fstat(stream.fileno())
+                if not stat.S_ISREG(before.st_mode):
                     raise ConversionError(f"OCR cache entry must be a regular file: {filename}")
+                data = stream.read(entry_limit + 1)
+                after = os.fstat(stream.fileno())
                 _assert_output_directory_unchanged(output)
-                data = stream.read(MAX_REPLY_BYTES + 1)
-            if len(data) <= MAX_REPLY_BYTES:
-                text = json.loads(data)
-                if isinstance(text, str):
-                    text.encode("utf-8")
-                    return text
+                path = output.path / filename if output.descriptor is None else filename
+                current = os.lstat(path, dir_fd=output.descriptor)
+            state = _ocr_cache_file_state(before)
+            if (
+                state != _ocr_cache_file_state(after)
+                or state != _ocr_cache_file_state(current)
+                or before.st_ctime_ns != after.st_ctime_ns
+                or not stat.S_ISREG(current.st_mode)
+                or _is_link_or_reparse(current)
+            ):
+                raise ConversionError(f"OCR cache entry changed while reading: {filename}")
+            if len(data) <= entry_limit:
+                record = json.loads(data)
+                if isinstance(record, dict) and record.get("version") == 1:
+                    text = record.get("text")
+                    if (
+                        isinstance(text, str)
+                        and record.get("checksum") == _ocr_cache_checksum(key, text)
+                    ):
+                        return text
         except (OSError, ValueError, RecursionError) as exc:
             raise ConversionError(f"cannot read OCR cache entry: {filename}: {exc}") from exc
         raise ConversionError(f"invalid OCR cache entry: {filename}")

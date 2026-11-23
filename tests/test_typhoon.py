@@ -53,6 +53,8 @@ def ollama(monkeypatch):
                 assert max(image.size) <= 1536
                 first = image.getpixel((0, 0))[0] > 128
             length_limited = not first and state["fail_second"]
+            if state.get("replace_model"):
+                state["digest"] = "replacement"
             self.send_json({
                 "done": True,
                 "done_reason": "length" if length_limited else "stop",
@@ -125,6 +127,28 @@ def test_text_pdf_does_not_connect(multi_page_text_pdf, monkeypatch, capsys):
     assert "Page 2 of the specification document." in capsys.readouterr().out
 
 
+def test_typhoon_image_points_to_its_install_extra(tmp_path, monkeypatch, capsys):
+    source = tmp_path / "scan.png"
+    source.write_bytes(b"image")
+    monkeypatch.setattr("d2md.capabilities.module_available", lambda _name: False)
+    assert cli.main([
+        str(source), "--ocr", "--ocr-engine", "typhoon", "--stdout",
+    ]) == 1
+    assert 'uv tool install --force "d2md[typhoon]"' in capsys.readouterr().err
+
+
+def test_model_change_leaves_page_uncached(scanned_pdf, ollama, tmp_path, capsys):
+    cache = tmp_path / "cache"
+    ollama["replace_model"] = True
+    assert cli.main([
+        str(scanned_pdf), "--ocr", "--ocr-engine", "typhoon",
+        "--ocr-cache", str(cache), "--stdout",
+    ]) == 1
+    assert "the Ollama model changed during OCR" in capsys.readouterr().err
+    assert not list(cache.glob("*.cache"))
+    assert len(ollama["posts"]) == 1
+
+
 def test_input_size_override_keeps_page_limit(scanned_pdf, monkeypatch, capsys):
     monkeypatch.setattr(
         cli, "DEFAULT_LIMITS", replace(cli.DEFAULT_LIMITS, max_input_bytes=64, max_pdf_pages=1)
@@ -159,6 +183,18 @@ def test_cache_refuses_a_symlink(tmp_path):
     with pytest.raises(ConversionError, match="cache entry must be a regular file"):
         cli._cached_ocr_page(cache, key, lambda: pytest.fail("Ollama called"))
     assert target.read_text(encoding="utf-8") == '"outside the cache"'
+
+
+def test_cache_refuses_an_edited_transcript(tmp_path):
+    key = "a" * 64
+    assert cli._cached_ocr_page(tmp_path, key, lambda: FIRST) == FIRST
+    path = tmp_path / f"typhoon-{key}.cache"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["text"] = SECOND
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+    with pytest.raises(ConversionError, match="invalid OCR cache entry"):
+        cli._cached_ocr_page(tmp_path, key, lambda: pytest.fail("Ollama called"))
 
 
 @pytest.mark.parametrize("endpoint", [
