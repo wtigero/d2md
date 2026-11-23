@@ -275,18 +275,25 @@ Apple Vision is supplied by macOS and needs no separate OCR weight download.
 RapidOCR may retrieve model files when a configured model is used for the first
 time.
 
-### Thai scans on Windows
+### Thai and English scans with Typhoon
 
-Run Typhoon OCR 1.5 3B locally in Ollama.
+This option is available in the development version. Install the Typhoon
+extra and pull the model in a running Ollama installation.
 
 ```bash
+uv tool install --force "d2md[typhoon] @ git+https://github.com/wtigero/d2md.git"
 ollama pull scb10x/typhoon-ocr1.5-3b
+d2md scan.pdf --ocr --ocr-engine typhoon -o converted
 ```
 
-Render one image per PDF page. Send each image to Ollama with the
-[official OCR prompt](https://ollama.com/scb10x/typhoon-ocr1.5-3b).
-Save each Markdown result separately so you can retry failed pages.
-Check tables and figure text against the scan.
+d2md uses a PDF's text layer when it can. For scans, it sends one page at a
+time to Ollama on loopback. It uses port 11434 by default and accepts a
+loopback address in `OLLAMA_HOST`. Use
+`--ocr-cache DIR` and repeat the same command to reuse completed pages.
+Keep the cache private because it contains transcribed text. For PDFs above
+100 MiB, set a per-file limit with `--max-input-mib 150` or another suitable
+value. Check tables and figure text against the scan.
+[Typhoon OCR model card](https://ollama.com/scb10x/typhoon-ocr1.5-3b)
 
 ## Layout and tables with Docling
 
@@ -409,15 +416,18 @@ or any other capability.
 | `-o DIR`, `--outdir DIR` | write Markdown to `DIR` instead of `md-out` |
 | `-f`, `--force` | replace an existing output safely |
 | `-q`, `--quiet` | print failures and the final summary only |
-| `--stdout` | convert exactly one input to Markdown on standard output; write no file |
+| `--stdout` | convert exactly one input to Markdown on standard output |
 | `--json` | write files normally and print one versioned JSON run report |
 | `--ocr` | permit OCR for scanned PDFs and images |
+| `--ocr-engine native\|typhoon` | select native OCR or Typhoon in local Ollama; requires `--ocr` |
+| `--ocr-cache DIR` | persist and reuse completed Typhoon pages |
 | `--docling` | use Docling for PDF/image layout and tables |
 | `--lang SCRIPT` | select the OCR script; requires `--ocr` |
 | `--device MODE` | select the Docling device; non-default values require `--docling` |
-| `--engines` | show locally available OCR engines and configured scripts |
-| `--capabilities` | show OCR, Docling, and device capabilities; combine with `--json` for agents |
+| `--engines` | show installed native OCR engines and configured scripts |
+| `--capabilities` | show native OCR, Docling, and device capabilities; combine with `--json` for agents |
 | `--version` | print the installed `d2md` version and exit |
+| `--max-input-mib MIB` | set the per-file input size limit in MiB |
 | `--unsafe-unlimited` | disable resource ceilings for trusted inputs only |
 
 If two inputs in one run need the same output name, such as `a/same.pdf` and

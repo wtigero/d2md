@@ -4,6 +4,10 @@ All notable changes are recorded here.
 
 ## [Unreleased]
 
+- Read Thai and English scans with local Ollama using `--ocr --ocr-engine typhoon`.
+  Use `--ocr-cache DIR` to reuse completed pages on a retry.
+- Set the input size limit with `--max-input-mib`.
+
 ## [0.2.2]
 
 - Support Python 3.14. On macOS it needs Apple silicon and macOS 14 or later,

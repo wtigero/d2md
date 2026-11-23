@@ -30,6 +30,7 @@ from .direct_ocr import (
     IMAGE_FORMATS,
     OCR_RENDER_SCALE,
     check_limit as _check_limit,
+    convert_scanned,
     convert_with_ocr,
     image_pages,
     page_pixels,
@@ -44,6 +45,8 @@ from .page_markers import (
     format_pdf_text_pages,
     pdf_content,
 )
+
+from .typhoon import PageCache
 
 # markitdown wins here: it keeps sheet names, slide numbers and image alt text,
 # and it is roughly an order of magnitude faster than a layout model.
@@ -1541,6 +1544,8 @@ def _convert_snapshot(
     lang: str | None,
     selected_device: str,
     ocr: bool,
+    ocr_engine: str,
+    ocr_cache: PageCache | None,
 ) -> tuple[str, str]:
     """Run preflight and conversion using only one verified input snapshot."""
     # The text route renders nothing, and direct OCR charges pixels as it renders.
@@ -1585,11 +1590,12 @@ def _convert_snapshot(
                 f"{source_path.name} needs OCR; run "
                 f"{install_command('ocr', force=True)} and rerun with --ocr"
             )
-        script = script_of(input_path, lang, limits=active_limits)
-        if script is None:
-            raise ConversionError("could not determine the OCR script; pass --lang SCRIPT")
-        return convert_with_ocr(input_path, script, active_limits)
-    if backend == "ocr":
+    if backend in {"pypdfium2", "ocr"}:
+        if ocr_engine == "typhoon":
+            from .typhoon import Typhoon
+
+            read_page = Typhoon(ocr_cache)
+            return convert_scanned(input_path, active_limits, read_page), "typhoon"
         script = script_of(input_path, lang, limits=active_limits)
         if script is None:
             raise ConversionError("could not determine the OCR script; pass --lang SCRIPT")
@@ -1625,6 +1631,8 @@ def convert(
     device: str = "auto",
     *,
     ocr: bool = False,
+    ocr_engine: str = "native",
+    ocr_cache: PageCache | None = None,
     docling: bool = False,
     identity: tuple[int, int] | None = None,
     root: Path | None = None,
@@ -1638,9 +1646,18 @@ def convert(
     name = path.name
     if lang is not None and not ocr:
         raise ConversionError("lang requires ocr=True")
+    if ocr_engine not in {"native", "typhoon"}:
+        raise ConversionError(f"unknown OCR engine: {ocr_engine!r}")
+    if ocr_engine == "typhoon":
+        if not ocr:
+            raise ConversionError("Typhoon requires ocr=True")
+        if docling or lang is not None:
+            raise ConversionError("Typhoon cannot be combined with Docling or script selection")
+    if ocr_cache is not None and ocr_engine != "typhoon":
+        raise ConversionError("OCR caching requires the Typhoon engine")
     if selected_device != "auto" and not docling:
         raise ConversionError("device selection requires docling=True")
-    if ocr:
+    if ocr and ocr_engine == "native":
         ensure_ocr_available()
     if docling:
         ensure_docling_available()
@@ -1663,6 +1680,8 @@ def convert(
                 lang=lang,
                 selected_device=selected_device,
                 ocr=ocr,
+                ocr_engine=ocr_engine,
+                ocr_cache=ocr_cache,
             )
         except ConversionError as error:
             raise _restore_source_name(error, input_path, path) from error

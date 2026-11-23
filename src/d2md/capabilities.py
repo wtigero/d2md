@@ -4,7 +4,7 @@ from .errors import ConversionError
 from .ocr import available_engines
 
 
-def install_command(extra: Literal["ocr", "docling"], *, force: bool) -> str:
+def install_command(extra: Literal["ocr", "docling", "typhoon"], *, force: bool) -> str:
     option = " --force" if force else ""
     return f'uv tool install{option} "d2md[{extra}]"'
 
